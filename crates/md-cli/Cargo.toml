@@ -1,0 +1,18 @@
+[package]
+name = "md-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "mdx"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+md-engine.workspace = true
+serde_json.workspace = true
+clap = { version = "4", features = ["derive"] }
+
+[dev-dependencies]
+tempfile = "3"

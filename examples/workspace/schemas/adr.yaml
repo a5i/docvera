@@ -1,0 +1,41 @@
+schemaVersion: 1
+documentType: adr
+frontMatter:
+  type: object
+  required: [id, title, status]
+  properties:
+    id: { type: string, pattern: '^ADR-[0-9]{4}$' }
+    title: { type: string, minLength: 5 }
+    status: { enum: [proposed, accepted, deprecated] }
+    related:
+      type: array
+      uniqueItems: true
+      items: { type: string }
+  additionalProperties: false
+identity:
+  field: frontMatter.id
+  uniqueWithin: documentType
+body:
+  sections:
+    - titleEquals: frontMatter.title
+      children:
+        sections:
+          - title: Context
+            nonEmpty: true
+          - title: Decision
+            nonEmpty: true
+            children:
+              sections:
+                - title: Implementation
+                  min: 0
+                  content:
+                    - kind: code
+                      language: bash
+          - title: Consequences
+            nonEmpty: true
+relations:
+  - from: frontMatter.related
+    targetType: feature
+    min: 1
+lint:
+  noSkippedHeadings: true

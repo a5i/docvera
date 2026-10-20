@@ -1,0 +1,29 @@
+{
+  "contractVersion": 1,
+  "commands": {
+    "init": "Create example workspace without overwriting files",
+    "check": "Validate current source; no index required",
+    "index": "Validate and atomically update indexed snapshot; --rebuild forces all documents",
+    "query sql": "Read-only SQLite SELECT with whitelisted functions; maximum 1000 rows",
+    "graph": "incoming|outgoing ID --depth 0..32; IDs must resolve uniquely or use document path",
+    "search": "Literal phrase, BM25, optional --type/--section/--limit (max 100)",
+    "extract": "Original indexed Markdown by section ID: relative/path.md#anchor",
+    "contract": "This descriptor"
+  },
+  "globalOptions": { "root": "Workspace directory, default .", "format": ["human", "json", "jsonl"] },
+  "exitCodes": { "0": "success (index can contain invalid documents)", "1": "check has errors, or warnings with --warnings-as-errors", "2": "operation/usage failure" },
+  "results": {
+    "check": ["contractVersion", "documents", "diagnostics"],
+    "index": ["contractVersion", "documents", "updated", "deleted", "diagnostics"],
+    "query": ["contractVersion", "rows"],
+    "graph": ["contractVersion", "root", "nodes", "edges"],
+    "search": ["contractVersion", "results"],
+    "extract": ["contractVersion", "sectionId", "path", "location", "markdown"],
+    "error": ["contractVersion", "error.code", "error.message"]
+  },
+  "span": { "offsets": "zero-based UTF-8 bytes; end exclusive", "positions": "one-based lines and Unicode scalar columns" },
+  "diagnostic": ["path", "span", "rule", "severity", "message"],
+  "jsonl": "One compact versioned result envelope per command invocation, not one row per line",
+  "snapshot": "query, graph, search and extract read the last successful index operation; run index explicitly after edits",
+  "stdout": "Only result data in JSON/JSONL; operational failures are JSON envelopes. clap usage errors/help use its standard streams."
+}

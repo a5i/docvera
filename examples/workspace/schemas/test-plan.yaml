@@ -1,0 +1,26 @@
+schemaVersion: 1
+documentType: test-plan
+frontMatter:
+  type: object
+  required: [id, title, covers]
+  properties:
+    id: { type: string, pattern: '^TEST-[0-9]{4}$' }
+    title: { type: string }
+    covers: { type: array, items: { type: string } }
+  additionalProperties: false
+identity: { field: frontMatter.id, uniqueWithin: workspace }
+body:
+  sections:
+    - titleEquals: frontMatter.title
+      children:
+        ordered: false
+        sections:
+          - title: Scope
+            nonEmpty: true
+          - title: Cases
+            content:
+              - kind: list
+relations:
+  - from: frontMatter.covers
+    targetType: feature
+    min: 1

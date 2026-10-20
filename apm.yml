@@ -1,0 +1,14 @@
+name: md-schema
+version: 1.0.0
+description: APM project for md-schema
+author: Alexey Pavlyukov
+# Which agent platforms to deploy to (uncomment to pin):
+# targets:
+#   - copilot
+#   - claude
+
+dependencies:
+  apm: []
+  mcp: []
+includes: auto
+scripts: {}

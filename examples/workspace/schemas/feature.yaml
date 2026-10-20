@@ -1,0 +1,27 @@
+schemaVersion: 1
+documentType: feature
+frontMatter:
+  type: object
+  required: [id, title]
+  properties:
+    id: { type: string, pattern: '^FEATURE-[0-9]{4}$' }
+    title: { type: string }
+  additionalProperties: false
+identity: { field: frontMatter.id, uniqueWithin: workspace }
+body:
+  sections:
+    - titleEquals: frontMatter.title
+      children:
+        sections:
+          - title: Overview
+            nonEmpty: true
+          - title: Requirements
+            children:
+              sections:
+                - pattern: '^REQ-[0-9]+ .+$'
+                  min: 1
+                  max: 10
+                  nonEmpty: true
+          - title: Security
+            min: 0
+            nonEmpty: true

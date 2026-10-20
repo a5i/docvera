@@ -1,0 +1,64 @@
+name: Cross-platform prototype
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test-build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: linux-x64
+            binary: mdx
+          - os: ubuntu-24.04-arm
+            name: linux-arm64
+            binary: mdx
+          - os: macos-15-intel
+            name: macos-x64
+            binary: mdx
+          - os: macos-latest
+            name: macos-arm64
+            binary: mdx
+          - os: windows-latest
+            name: windows-x64
+            binary: mdx.exe
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.name }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --locked --workspace --all-targets -- -D warnings
+      - run: cargo test --locked --workspace
+      - run: cargo build --locked -p md-cli
+      - run: npm --prefix npm/mdx run build
+      - run: npm --prefix npm/mdx test
+      - run: cargo build --locked --release -p md-cli
+      - run: npm --prefix npm/mdx run build:release
+      - name: Test release native addon against release CLI
+        run: npm --prefix npm/mdx test
+        env:
+          MDX_BIN: ${{ github.workspace }}/target/release/${{ matrix.binary }}
+      - name: Pack platform-specific native package
+        working-directory: npm/mdx
+        run: npm pack
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mdx-${{ matrix.name }}
+          path: |
+            target/release/${{ matrix.binary }}
+            npm/mdx/*.tgz
+            docs/contracts/v1.json
+            LICENSE
+          if-no-files-found: error
