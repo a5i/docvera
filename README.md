@@ -33,6 +33,14 @@ Or run the binary directly: `target/release/mdx` (Windows: `target\release\mdx.e
 
 `check` reads current files and requires **no database**. `query`, `graph`, `search` and `extract` read the **last indexed snapshot**; index explicitly after changes. `index` retains invalid documents so diagnostics and duplicates remain inspectable; use `check` as the CI gate.
 
+## Role-based examples
+
+The five [executable use-case workspaces](examples/use-cases/README.md) cover product
+traceability, project governance with offline snapshots, architecture governance,
+QA coverage and operational readiness. Each includes schemas, Markdown documents,
+SQL reports and expected results, and doubles as an integration-test fixture.
+They distinguish current validation from reporting-only policies and deferred features.
+
 ## Describe document structure
 
 Schemas are YAML or JSON. Front matter uses real JSON Schema; the body uses a small, deliberately separate section DSL:

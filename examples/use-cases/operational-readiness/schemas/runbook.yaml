@@ -1,0 +1,15 @@
+schemaVersion: 1
+documentType: runbook
+frontMatter:
+  type: object
+  required: [id, owner, reviewedAt]
+  properties:
+    id: {type: string, minLength: 1}
+    owner: {type: string, minLength: 1}
+    reviewedAt: {type: string, pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'}
+identity: {field: frontMatter.id, uniqueWithin: workspace}
+body:
+  sections:
+    - {title: Diagnosis, nonEmpty: true}
+    - {title: Mitigation, nonEmpty: true}
+    - {title: Escalation, nonEmpty: true}

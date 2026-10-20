@@ -1,0 +1,17 @@
+schemaVersion: 1
+documentType: component
+frontMatter:
+  type: object
+  required: [id, owner, layer]
+  properties:
+    id: {type: string, minLength: 1}
+    owner: {type: string, minLength: 1}
+    layer: {enum: [application, domain, infrastructure]}
+identity: {field: frontMatter.id, uniqueWithin: workspace}
+relations:
+  - {from: frontMatter.architecture, targetType: architecture, min: 1, max: 1}
+  - {from: frontMatter.interfaces, targetType: interface, min: 1}
+  - {from: frontMatter.dependsOn, targetType: component}
+body:
+  sections:
+    - {title: Responsibilities, nonEmpty: true}

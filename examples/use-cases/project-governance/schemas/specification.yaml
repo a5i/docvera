@@ -1,0 +1,15 @@
+schemaVersion: 1
+documentType: specification
+frontMatter:
+  type: object
+  required: [id, owner, status, source, capturedAt]
+  properties:
+    id: {type: string, minLength: 1}
+    owner: {type: string, minLength: 1}
+    status: {enum: [draft, approved]}
+    source: {const: confluence-snapshot}
+    capturedAt: {type: string, pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'}
+identity: {field: frontMatter.id, uniqueWithin: workspace}
+body:
+  sections:
+    - {title: Requirements, nonEmpty: true}

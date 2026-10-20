@@ -1,0 +1,18 @@
+schemaVersion: 1
+documentType: test-case
+frontMatter:
+  type: object
+  required: [id, owner, status]
+  properties:
+    id: {type: string, minLength: 1}
+    owner: {type: string, minLength: 1}
+    status: {enum: [active, retired]}
+identity: {field: frontMatter.id, uniqueWithin: workspace}
+relations:
+  - {from: frontMatter.requirements, targetType: requirement, min: 1}
+body:
+  sections:
+    - {title: Preconditions, nonEmpty: true}
+    - title: Steps
+      content: [{kind: list, min: 1}]
+    - {title: Expected Result, nonEmpty: true}

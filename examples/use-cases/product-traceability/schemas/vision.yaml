@@ -1,0 +1,14 @@
+schemaVersion: 1
+documentType: vision
+frontMatter:
+  type: object
+  required: [id, title, owner]
+  properties:
+    id: {type: string, minLength: 1}
+    title: {type: string, minLength: 1}
+    owner: {type: string, minLength: 1}
+identity: {field: frontMatter.id, uniqueWithin: workspace}
+body:
+  sections:
+    - title: Objectives
+      nonEmpty: true

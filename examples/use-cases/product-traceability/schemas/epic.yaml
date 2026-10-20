@@ -1,0 +1,13 @@
+schemaVersion: 1
+documentType: jira-epic
+frontMatter:
+  type: object
+  required: [id, owner, source]
+  properties:
+    id: {type: string, minLength: 1}
+    owner: {type: string, minLength: 1}
+    source: {const: jira-snapshot}
+identity: {field: frontMatter.id, uniqueWithin: workspace}
+body:
+  sections:
+    - {title: Summary, nonEmpty: true}

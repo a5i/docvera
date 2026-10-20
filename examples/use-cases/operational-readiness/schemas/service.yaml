@@ -1,0 +1,24 @@
+schemaVersion: 1
+documentType: service
+frontMatter:
+  type: object
+  required: [id, owner, lifecycle, tier]
+  properties:
+    id: {type: string, minLength: 1}
+    owner: {type: string, minLength: 1}
+    lifecycle: {enum: [development, production]}
+    tier: {enum: [critical, standard]}
+    oncall: {type: string, minLength: 1}
+  if:
+    properties: {lifecycle: {const: production}}
+  then:
+    required: [oncall]
+identity: {field: frontMatter.id, uniqueWithin: workspace}
+relations:
+  - {from: frontMatter.runbook, targetType: runbook, max: 1}
+  - {from: frontMatter.deployment, targetType: deployment-guide, max: 1}
+  - {from: frontMatter.slo, targetType: slo, max: 1}
+  - {from: frontMatter.dependencies, targetType: service}
+body:
+  sections:
+    - {title: Overview, nonEmpty: true}

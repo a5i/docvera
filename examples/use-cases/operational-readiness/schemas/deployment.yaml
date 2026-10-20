@@ -1,0 +1,13 @@
+schemaVersion: 1
+documentType: deployment-guide
+frontMatter:
+  type: object
+  required: [id, owner]
+  properties:
+    id: {type: string, minLength: 1}
+    owner: {type: string, minLength: 1}
+identity: {field: frontMatter.id, uniqueWithin: workspace}
+body:
+  sections:
+    - {title: Deploy, nonEmpty: true}
+    - {title: Rollback, nonEmpty: true}
