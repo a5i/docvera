@@ -85,7 +85,9 @@ impl Workspace {
         fingerprint.update(config_text.as_bytes());
         policies.fingerprint(&mut fingerprint);
         for (path, absolute) in paths {
-            let mut doc = parser::parse(path.clone(), fs::read_to_string(&absolute)?);
+            let text = fs::read_to_string(&absolute)
+                .with_context(|| format!("Cannot read {}", absolute.display()))?;
+            let mut doc = parser::parse(path.clone(), text);
             let selected = if let Some(selector) = doc.metadata.get("$schema") {
                 selector
                     .as_str()
@@ -103,7 +105,8 @@ impl Workspace {
             };
             let resolved: Result<Schema> = (|| {
                 let schema_path = within(&root, &selected?)?;
-                let text = fs::read_to_string(schema_path)?;
+                let text = fs::read_to_string(&schema_path)
+                    .with_context(|| format!("Cannot read {}", schema_path.display()))?;
                 fingerprint.update(text.as_bytes());
                 let schema: Schema = serde_saphyr::from_str(&text)?;
                 schema.check_definition()?;

@@ -8,7 +8,7 @@ mod shacl_report;
 mod source_map;
 pub mod workspace;
 
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use std::{
     fs::{self, OpenOptions},
     io::Write,
@@ -65,7 +65,8 @@ pub fn init(root: &Path) -> Result<Vec<String>> {
     for (relative, text) in EXAMPLE_FILES {
         let path = root.join(relative);
         let parent = path.parent().unwrap();
-        fs::create_dir_all(parent)?;
+        fs::create_dir_all(parent)
+            .with_context(|| format!("Cannot create {}", parent.display()))?;
         workspace::within(&canonical_root, parent)?;
         let mut file = OpenOptions::new().write(true).create_new(true).open(path)?;
         file.write_all(text.as_bytes())?;

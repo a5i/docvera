@@ -513,3 +513,34 @@ fn symlinks_cannot_escape_workspace() {
     symlink(outside.path(), dir.path().join(".mdx")).unwrap();
     assert!(index::index(&Workspace::load(dir.path()).unwrap(), false).is_err());
 }
+
+#[test]
+fn non_utf8_document_error_names_the_file() {
+    let dir = fixture();
+    fs::write(dir.path().join("docs/binary.md"), b"\xff\xfe\x00bad").unwrap();
+    let error = match Workspace::load(dir.path()) {
+        Err(error) => error,
+        Ok(_) => panic!("expected non-UTF-8 document to fail the load"),
+    };
+    assert!(
+        format!("{error:#}").contains("binary.md"),
+        "expected document path in error, got: {error:#}"
+    );
+}
+
+#[test]
+fn non_utf8_schema_error_names_the_schema_file() {
+    let dir = fixture();
+    fs::write(dir.path().join("schemas/adr.yaml"), b"\xff\xfe\x00bad").unwrap();
+    let result = Workspace::load(dir.path()).unwrap().check();
+    let diagnostic = result
+        .diagnostics
+        .iter()
+        .find(|d| d.rule == "schema.resolve")
+        .expect("schema.resolve diagnostic");
+    assert!(
+        diagnostic.message.contains("adr.yaml"),
+        "expected schema path in message, got: {}",
+        diagnostic.message
+    );
+}
