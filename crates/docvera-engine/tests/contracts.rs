@@ -144,27 +144,33 @@ fn document_schema_covers_recursive_dsl_and_does_not_confuse_embedded_front_matt
 fn every_example_config_and_document_schema_matches_its_generated_contract() {
     let configs = validator(contracts::config_schema());
     let documents = validator(contracts::document_schema());
-    let examples = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples");
+    // Examples live in two places: the crate-owned assets/workspace embedded by
+    // `init`, and the multi-root use-case workspaces under <repo>/examples.
+    let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let roots = [manifest.join("assets"), manifest.join("../../examples")];
     let mut counts = (0, 0);
-    for entry in walkdir::WalkDir::new(examples) {
-        let entry = entry.unwrap();
-        let path = entry.path();
-        if !entry.file_type().is_file() {
-            continue;
-        }
-        if entry.file_name() == "docvera.toml" {
-            let data: Value = toml::from_str(&fs::read_to_string(path).unwrap()).unwrap();
-            assert!(configs.is_valid(&data), "{}", path.display());
-            counts.0 += 1;
-        } else if path
-            .parent()
-            .and_then(Path::file_name)
-            .is_some_and(|n| n == "schemas")
-            && path.extension().is_some_and(|e| e == "yaml" || e == "json")
-        {
-            let data: Value = serde_saphyr::from_str(&fs::read_to_string(path).unwrap()).unwrap();
-            assert!(documents.is_valid(&data), "{}", path.display());
-            counts.1 += 1;
+    for examples in roots {
+        for entry in walkdir::WalkDir::new(examples) {
+            let entry = entry.unwrap();
+            let path = entry.path();
+            if !entry.file_type().is_file() {
+                continue;
+            }
+            if entry.file_name() == "docvera.toml" {
+                let data: Value = toml::from_str(&fs::read_to_string(path).unwrap()).unwrap();
+                assert!(configs.is_valid(&data), "{}", path.display());
+                counts.0 += 1;
+            } else if path
+                .parent()
+                .and_then(Path::file_name)
+                .is_some_and(|n| n == "schemas")
+                && path.extension().is_some_and(|e| e == "yaml" || e == "json")
+            {
+                let data: Value =
+                    serde_saphyr::from_str(&fs::read_to_string(path).unwrap()).unwrap();
+                assert!(documents.is_valid(&data), "{}", path.display());
+                counts.1 += 1;
+            }
         }
     }
     assert!(counts.0 >= 7 && counts.1 >= 3, "{counts:?}");
@@ -174,7 +180,7 @@ fn every_example_config_and_document_schema_matches_its_generated_contract() {
 fn output_schemas_validate_actual_results_and_structured_shacl_variants() {
     let checks = validator(contracts::check_result_schema());
     let diagnostics = validator(contracts::diagnostic_schema());
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/workspace");
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/workspace");
     let actual = serde_json::to_value(Workspace::load(&root).unwrap().check()).unwrap();
     assert!(checks.is_valid(&actual));
     let mut diagnostic = json!({"path":"note.md","span":{"start":0,"end":1,"line":1,"column":1,"endLine":1,"endColumn":2},"rule":"shacl.Constraint","severity":"error","message":"Invalid"});

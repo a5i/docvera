@@ -89,6 +89,6 @@ The final command verifies compilation/code generation of the Rust checker core 
 
 ## Parsing and untyped files
 
-See [schema configuration](schema.md#resolution-and-workspace) for `[parser]`, `[frontMatter]` and `[validation].untyped`. All entry points use the same settings. Parser options and front-matter settings participate in the index invalidation fingerprint. Source text is never normalized or rewritten: BOM, line endings and original bytes remain in the document and its hash.
+See [schema configuration](../crates/docvera-cli/assets/schema.md#resolution-and-workspace) for `[parser]`, `[frontMatter]` and `[validation].untyped`. All entry points use the same settings. Parser options and front-matter settings participate in the index invalidation fingerprint. Source text is never normalized or rewritten: BOM, line endings and original bytes remain in the document and its hash.
 
 pulldown-cmark is a crates.io dependency (`0.13`; the repository lockfile pins `0.13.4`). A Rust consumer controlling the root Cargo workspace can override it via `[patch.crates-io]`. Precompiled Node binaries require rebuilding to incorporate such a patch. Known upstream range defects are not repaired by this API; metadata is handled separately with parser-owned YAML/TOML locations and whole-front-matter fallbacks where a precise location is unavailable.

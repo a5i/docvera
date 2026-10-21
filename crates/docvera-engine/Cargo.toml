@@ -3,7 +3,16 @@ name = "docvera-engine"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+description = "Schema-validated, indexed, queryable Markdown knowledge base engine"
+readme = "../../README.md"
+keywords = ["markdown", "schema", "validation", "knowledge-base", "documentation"]
+categories = ["text-processing"]
 
+[package.metadata.docs.rs]
+all-features = true
 [features]
 default = ["index", "shacl"]
 index = ["dep:rusqlite"]

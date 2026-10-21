@@ -26,14 +26,14 @@ Markdown + docvera.toml + local schemas
 - `crates/docvera-cli`: clap CLI, exit codes, human/JSON/JSONL presentation.
 - `crates/docvera-node`: napi-rs async entry points invoking the same engine via blocking workers.
 - `npm/docvera`: zero-dependency facade, TypeScript interfaces, local native build, parity tests.
-- `examples/workspace`: three typed documents and schemas; embedded by `docvera init`.
-- `docs/contracts/v1.json`: prose descriptor template. CLI fills typed result/diagnostic field lists and full `jsonSchemas` from Rust types; the template alone is not the complete runtime contract.
+- `crates/docvera-engine/assets/workspace`: three typed documents and schemas; embedded by `docvera init`.
+- `crates/docvera-cli/assets/contracts/v1.json`: prose descriptor template. CLI fills typed result/diagnostic field lists and full `jsonSchemas` from Rust types; the template alone is not the complete runtime contract.
 
 The core deliberately remains one crate split into modules until contracts settle. It does not implement all eleven crates from the proposal. No database code is needed to run `check`.
 
 `docvera-engine` Cargo features `index` and `shacl` are enabled by default and can be disabled independently. A checker-only build carries neither SQLite nor RDF; requested SHACL fails closed when its feature is absent. The in-memory `CheckerContext::from_sources` constructor needs no filesystem. The core compiles for `wasm32-unknown-unknown` without default features; a browser JS package/runtime validation is separate future work. See [embedded checker API and build instructions](checker.md).
 
-Workspace configuration is canonical `docvera.toml`; `docvera.yaml` is a fallback, never merged. `policy.rs` is the Rudof adapter: it loads local `.ttl` files, projects documents and resolved edges into an ephemeral RDF graph, and maps results into existing diagnostics. No parallel custom assertion DSL or YAML/TOML-to-SHACL compiler exists. `check` remains index-free; policy sources participate in the index invalidation fingerprint. Policy findings carry structured `shacl` report objects and YAML/TOML-parser source spans (RFC 6901 `sourceField` pointers) with conservative fallbacks; location extraction never changes YAML/TOML semantics. [SHACL semantics and limits](shacl.md) document the versioned URN vocabulary, provenance rules and tested subset.
+Workspace configuration is canonical `docvera.toml`; `docvera.yaml` is a fallback, never merged. `policy.rs` is the Rudof adapter: it loads local `.ttl` files, projects documents and resolved edges into an ephemeral RDF graph, and maps results into existing diagnostics. No parallel custom assertion DSL or YAML/TOML-to-SHACL compiler exists. `check` remains index-free; policy sources participate in the index invalidation fingerprint. Policy findings carry structured `shacl` report objects and YAML/TOML-parser source spans (RFC 6901 `sourceField` pointers) with conservative fallbacks; location extraction never changes YAML/TOML semantics. [SHACL semantics and limits](../crates/docvera-cli/assets/shacl.md) document the versioned URN vocabulary, provenance rules and tested subset.
 
 ## Deliberate changes from the design proposal
 

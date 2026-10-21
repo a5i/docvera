@@ -29,31 +29,31 @@ pub use workspace::Workspace;
 pub const EXAMPLE_FILES: &[(&str, &str)] = &[
     (
         "docvera.toml",
-        include_str!("../../../examples/workspace/docvera.toml"),
+        include_str!("../assets/workspace/docvera.toml"),
     ),
     (
         "schemas/adr.yaml",
-        include_str!("../../../examples/workspace/schemas/adr.yaml"),
+        include_str!("../assets/workspace/schemas/adr.yaml"),
     ),
     (
         "schemas/feature.yaml",
-        include_str!("../../../examples/workspace/schemas/feature.yaml"),
+        include_str!("../assets/workspace/schemas/feature.yaml"),
     ),
     (
         "schemas/test-plan.yaml",
-        include_str!("../../../examples/workspace/schemas/test-plan.yaml"),
+        include_str!("../assets/workspace/schemas/test-plan.yaml"),
     ),
     (
         "docs/adr-0001.md",
-        include_str!("../../../examples/workspace/docs/adr-0001.md"),
+        include_str!("../assets/workspace/docs/adr-0001.md"),
     ),
     (
         "docs/feature-0042.md",
-        include_str!("../../../examples/workspace/docs/feature-0042.md"),
+        include_str!("../assets/workspace/docs/feature-0042.md"),
     ),
     (
         "docs/test-0001.md",
-        include_str!("../../../examples/workspace/docs/test-0001.md"),
+        include_str!("../assets/workspace/docs/test-0001.md"),
     ),
 ];
 

@@ -32,6 +32,8 @@ rustc-ice-*.txt
 # Keep pre-rename derived indexes out of Git; docvera does not read them.
 **/.mdx/
 /demo/
+# Ignore obsolete artifacts from the former per-platform npm packaging.
+/npm/docvera/pkg/
 /npm/docvera/*.node
 /npm/docvera/*.tgz
 /npm/docvera/LICENSE

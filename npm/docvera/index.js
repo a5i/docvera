@@ -1,6 +1,20 @@
 'use strict';
 const { resolve } = require('node:path');
-const native = require('./docvera_engine.node');
+
+const { existsSync } = require('node:fs');
+const { platformName } = require('./platforms.cjs');
+
+function loadNative() {
+  const binary = resolve(__dirname, `docvera.${platformName()}.node`);
+  // Do not hide a load/ABI error in a present platform binary with a fallback.
+  if (existsSync(binary)) return require(binary);
+  // Compatibility with older local builds; this file is not published.
+  const local = resolve(__dirname, 'docvera_engine.node');
+  if (existsSync(local)) return require(local);
+  throw new Error(`Missing docvera native addon: ${binary}. In a source checkout, run npm run build.`);
+}
+
+const native = loadNative();
 
 async function openWorkspace({ root = process.cwd() } = {}) {
   root = resolve(root);

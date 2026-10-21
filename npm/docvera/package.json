@@ -1,17 +1,23 @@
 {
-  "name": "@docvera/engine",
+  "name": "@a5i/docvera",
   "version": "0.1.0",
-  "private": true,
+  "description": "Native Node.js bindings for docvera, a schema-validated, indexed and queryable Markdown knowledge engine",
   "license": "MIT",
-  "description": "docvera native Rust Markdown Knowledge Engine prototype",
   "type": "commonjs",
   "main": "index.js",
   "types": "index.d.ts",
-  "files": ["index.js", "index.d.ts", "docvera_engine.node", "LICENSE"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/a5i/docvera",
+    "directory": "npm/docvera"
+  },
+  "files": ["index.js", "index.d.ts", "platforms.cjs", "docvera.*.node", "LICENSE"],
   "engines": { "node": ">=22" },
+  "publishConfig": { "access": "public" },
   "scripts": {
     "build": "node build.cjs",
     "build:release": "node build.cjs --release",
+    "validate:release": "node scripts/validate-release.cjs",
     "test": "node --test test/*.test.cjs"
   }
 }

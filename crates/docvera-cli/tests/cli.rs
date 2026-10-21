@@ -214,8 +214,8 @@ fn guide_is_complete_offline_and_available_in_all_formats() {
     assert!(human.stderr.is_empty());
     let text = String::from_utf8(human.stdout).unwrap();
     assert!(text.starts_with("# docvera CLI guide\n"));
-    assert!(text.contains(include_str!("../../../docs/schema.md")));
-    assert!(text.contains(include_str!("../../../docs/shacl.md")));
+    assert!(text.contains(include_str!("../assets/schema.md")));
+    assert!(text.contains(include_str!("../assets/shacl.md")));
     assert!(text.contains("## Workflow for an AI agent"));
 
     let result = json(&root, &["guide"], 0);
@@ -256,7 +256,7 @@ fn guide_sql_and_graph_examples_work_on_initialized_workspace() {
         "SELECT document_id,rule,severity,message FROM diagnostics ORDER BY document_id,rule",
         "SELECT document_id,json_extract(shacl,'$.sourceField') AS field FROM diagnostics WHERE shacl IS NOT NULL",
     ] {
-        assert!(include_str!("../../../docs/cli-guide.md").contains(sql));
+        assert!(include_str!("../assets/cli-guide.md").contains(sql));
         assert!(json(root, &["query", "sql", sql], 0)["rows"].is_array());
     }
     json(

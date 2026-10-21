@@ -572,6 +572,54 @@ dependencies = [
 ]
 
 [[package]]
+name = "docvera-cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "docvera-engine",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
+name = "docvera-engine"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "blake3",
+ "globset",
+ "jsonschema",
+ "oxrdf",
+ "percent-encoding",
+ "pulldown-cmark",
+ "regex",
+ "rudof_rdf",
+ "rusqlite",
+ "schemars",
+ "serde",
+ "serde-saphyr",
+ "serde_json",
+ "shacl",
+ "tempfile",
+ "toml",
+ "walkdir",
+]
+
+[[package]]
+name = "docvera-node"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "docvera-engine",
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "dyn-clone"
 version = "1.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1440,54 +1488,6 @@ checksum = "d89e7ee0cfbedfc4da3340218492196241d89eefb6dab27de5df917a6d2e78cf"
 dependencies = [
  "cfg-if",
  "digest",
-]
-
-[[package]]
-name = "docvera-cli"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "docvera-engine",
- "serde_json",
- "tempfile",
-]
-
-[[package]]
-name = "docvera-engine"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "blake3",
- "globset",
- "jsonschema",
- "oxrdf",
- "percent-encoding",
- "pulldown-cmark",
- "regex",
- "rudof_rdf",
- "rusqlite",
- "schemars",
- "serde",
- "serde-saphyr",
- "serde_json",
- "shacl",
- "tempfile",
- "toml",
- "walkdir",
-]
-
-[[package]]
-name = "docvera-node"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "docvera-engine",
- "napi",
- "napi-build",
- "napi-derive",
- "serde_json",
- "tokio",
 ]
 
 [[package]]

@@ -118,7 +118,7 @@ For a draft Epic whose Features must all be draft:
 
 Queries use explicit inline `PREFIX` declarations. SHACL-SPARQL prefix declarations/custom components/targets, newer SHACL drafts, rules and SHACL-AF are not advertised as supported. Unknown SHACL predicates are rejected. This is a tested integration subset, **not a complete W3C conformance certification**.
 
-See the executable [design-invariants workspace](../examples/use-cases/design-invariants) for multiple conditional policies. These are snapshot invariants: no status cascading, file rewriting or transition/model checking occurs.
+See the executable [design-invariants workspace](../../../examples/use-cases/design-invariants) for multiple conditional policies. These are snapshot invariants: no status cascading, file rewriting or transition/model checking occurs.
 
 ## Diagnostics and CI
 

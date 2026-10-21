@@ -4,7 +4,23 @@ A cross-platform **Rust prototype** that turns Git-managed Markdown into a valid
 
 **Implemented:** YAML/JSON schemas, section-tree validation, lint warnings, ID uniqueness, typed metadata relations, SHACL Core/SPARQL cross-document policies, Markdown links/anchors, incremental index writes, read-only SQL, graph traversal, section-level BM25 search and original Markdown extraction.
 
-**Prototype choices:** SQLite + bundled FTS5 instead of DuckDB, and pulldown-cmark instead of comrak. No database server or downloadable extensions. See [architecture and limitations](docs/architecture.md), [schema language](docs/schema.md), and [v1 command contracts](docs/contracts/v1.json). The [original proposal](docs/input/markdown_knowledge_engine_poc_en-2.md) is a roadmap, not a claim that every proposed capability is implemented.
+**Prototype choices:** SQLite + bundled FTS5 instead of DuckDB, and pulldown-cmark instead of comrak. No database server or downloadable extensions. See [architecture and limitations](docs/architecture.md), [schema language](crates/docvera-cli/assets/schema.md), and [v1 command contracts](crates/docvera-cli/assets/contracts/v1.json). The [original proposal](docs/input/markdown_knowledge_engine_poc_en-2.md) is a roadmap, not a claim that every proposed capability is implemented.
+
+## Install
+
+Released versions are published from a `v*` tag by the release workflow:
+
+```sh
+cargo install --locked docvera-cli # CLI from crates.io
+npm install @a5i/docvera           # native Node.js addon (prebuilt per platform)
+```
+
+CLI binaries for Linux x64/arm64, macOS x64/arm64 and Windows x64 are attached
+to each [GitHub Release](https://github.com/a5i/docvera/releases) with
+SHA-256 checksums. Like `eregex`, the single `@a5i/docvera` npm package contains
+prebuilt `.node` binaries for all five platforms; its loader selects the matching
+binary at runtime. No separate platform packages or optional dependencies are
+needed. Building locally still works as shown in the [Node.js API](#nodejs-api) section.
 
 ## Install from source
 
@@ -17,14 +33,14 @@ docvera --version   # docvera 0.1.0
 
 Updating is the same command re-run over the existing installation. A local build without installing works too: `cargo build --locked --release -p docvera-cli`, then use `target/release/docvera` (Windows: `target\release\docvera.exe`).
 
-Requirements: a current stable Rust toolchain and a C/C++ compiler — SQLite is compiled from bundled source (Windows: Visual Studio Build Tools with the C++ workload; macOS: Xcode command-line tools; Linux: GCC/Clang and standard build tools). Crates are downloaded once from the pinned `Cargo.lock`, including the Rudof SHACL engine. The native Node.js addon is **not** published to npm; build it locally as shown in the Node.js API section below.
+Requirements: Rust 1.89 or newer (current stable recommended) and a C/C++ compiler — SQLite is compiled from bundled source (Windows: Visual Studio Build Tools with the C++ workload; macOS: Xcode command-line tools; Linux: GCC/Clang and standard build tools). Crates are downloaded once from the pinned `Cargo.lock`, including the Rudof SHACL engine. The native Node.js addon is published to npm as `@a5i/docvera` with all prebuilt platform binaries in one package; to build it from source instead, see the Node.js API section below.
 
 ## Migrating from md-schema / mdx
 
 This is a breaking rename with no old-name aliases. Install the new `docvera` CLI;
 rename workspace `mdx.toml` / `mdx.yaml` to `docvera.toml` / `docvera.yaml`.
 Update scripts to use `docvera`, native parity overrides to `DOCVERA_BIN`, and
-Node imports to `@docvera/engine` (local source package: `npm/docvera`). Rust
+Node imports to `@a5i/docvera` (local source package: `npm/docvera`). Rust
 packages are now `docvera-engine`, `docvera-cli`, and `docvera-node`.
 Replace `urn:mdx:` with `urn:docvera:` in SHACL policies and schema identifiers.
 Run `docvera index --rebuild` to create `.docvera/index.sqlite3`; the old `.mdx`
@@ -46,7 +62,7 @@ cargo run --locked --bin docvera -- --root demo search OAuth --type feature --se
 cargo run --locked --bin docvera -- --root demo extract "docs/feature-0042.md#security"
 ```
 
-Or run the binary directly: `target/release/docvera` (Windows: `target\release\docvera.exe`). `init` creates a small workspace containing an ADR, a Feature and a Test Plan. It refuses to overwrite existing files. The tracked version is in [`examples/workspace`](examples/workspace).
+Or run the binary directly: `target/release/docvera` (Windows: `target\release\docvera.exe`). `init` creates a small workspace containing an ADR, a Feature and a Test Plan. It refuses to overwrite existing files. The tracked version is in [`examples/workspace`](crates/docvera-engine/assets/workspace).
 
 ### Exercise failures and updates
 
@@ -108,20 +124,20 @@ Keep configuration in `docvera.toml` and standard SHACL rules in separate Turtle
 shapes = ["policies/relations.ttl", "policies/lifecycle.ttl"]
 ```
 
-`check` builds an in-memory RDF projection from current documents and resolved references, runs pinned Rudof SHACL Native validation (Core plus tested inline SPARQL), and maps violations back to Markdown diagnostics. No persistent RDF store or SQL index is required. See [policy examples, RDF vocabulary and limits](docs/shacl.md) and the runnable [design-invariants workspace](examples/use-cases/design-invariants).
+`check` builds an in-memory RDF projection from current documents and resolved references, runs pinned Rudof SHACL Native validation (Core plus tested inline SPARQL), and maps violations back to Markdown diagnostics. No persistent RDF store or SQL index is required. See [policy examples, RDF vocabulary and limits](crates/docvera-cli/assets/shacl.md) and the runnable [design-invariants workspace](examples/use-cases/design-invariants).
 
 `docvera init` and tracked examples use TOML. Legacy `docvera.yaml` remains a migration fallback; having both configs is an error. Local document schemas remain YAML/JSON. There is no custom `constraints` assertion DSL.
 
 ## Node.js API
 
-Requires Node.js 22+ and the Rust/C toolchain **for the current local build**. There is no published npm package or automatic prebuilt-platform loader yet.
+Published to npm as [`@a5i/docvera`](https://www.npmjs.com/package/@a5i/docvera). A single package ships all supported platform binaries and selects the matching addon at runtime, without additional npm dependencies. To build the addon locally instead, Node.js 22+ and the Rust/C toolchain are required:
 
 ```sh
 npm --prefix npm/docvera run build
 ```
 
 ```js
-const { openWorkspace } = require('./npm/docvera');
+const { openWorkspace } = require('@a5i/docvera');
 
 async function main() {
   const engine = await openWorkspace({ root: './demo' });

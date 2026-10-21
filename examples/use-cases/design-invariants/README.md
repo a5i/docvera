@@ -48,5 +48,5 @@ including path-based references. Warning-severity results would not fail `check`
 unless `--warnings-as-errors` is selected. Malformed Turtle/queries are operation
 errors (exit 2), never a passing check.
 
-See [SHACL vocabulary, configuration and limits](../../../docs/shacl.md) and
-[schema DSL](../../../docs/schema.md).
+See [SHACL vocabulary, configuration and limits](../../../crates/docvera-cli/assets/shacl.md) and
+[schema DSL](../../../crates/docvera-cli/assets/schema.md).

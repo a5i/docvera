@@ -1,9 +1,9 @@
 const GUIDE: &str = concat!(
-    include_str!("../../../docs/cli-guide.md"),
+    include_str!("../assets/cli-guide.md"),
     "\n---\n\n",
-    include_str!("../../../docs/schema.md"),
+    include_str!("../assets/schema.md"),
     "\n---\n\n",
-    include_str!("../../../docs/shacl.md"),
+    include_str!("../assets/shacl.md"),
 );
 
 use anyhow::Result;
@@ -104,8 +104,7 @@ enum SchemaKind {
 
 /// Prose command metadata stays explicit; data schemas are always generated.
 fn contract() -> Result<Value> {
-    let mut descriptor: Value =
-        serde_json::from_str(include_str!("../../../docs/contracts/v1.json"))?;
+    let mut descriptor: Value = serde_json::from_str(include_str!("../assets/contracts/v1.json"))?;
     let schemas = serde_json::to_value(docvera_engine::contracts::json_schemas())?;
     // Keep the descriptor's compact field lists in sync too, not just its full schemas.
     descriptor["results"]["check"] = schemas["check-result"]["required"].clone();

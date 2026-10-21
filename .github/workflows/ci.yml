@@ -6,6 +6,19 @@ on:
 permissions:
   contents: read
 jobs:
+  msrv:
+    name: Minimum supported Rust (1.89)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.89"
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: msrv
+      - run: cargo check --locked --workspace --all-targets
+      - run: cargo check --locked -p docvera-engine --no-default-features
   checker-only:
     runs-on: ubuntu-latest
     steps:
@@ -64,7 +77,7 @@ jobs:
         run: npm --prefix npm/docvera test
         env:
           DOCVERA_BIN: ${{ github.workspace }}/target/release/${{ matrix.binary }}
-      - name: Pack platform-specific native package
+      - name: Pack npm package (current-platform smoke artifact)
         working-directory: npm/docvera
         run: npm pack
       - uses: actions/upload-artifact@v4
@@ -73,6 +86,6 @@ jobs:
           path: |
             target/release/${{ matrix.binary }}
             npm/docvera/*.tgz
-            docs/contracts/v1.json
+            crates/docvera-cli/assets/contracts/v1.json
             LICENSE
           if-no-files-found: error

@@ -1,6 +1,8 @@
 const { spawnSync } = require('node:child_process');
 const { copyFileSync } = require('node:fs');
 const { resolve, join } = require('node:path');
+const { platformName } = require('./platforms.cjs');
+const binaryName = `docvera.${platformName()}.node`;
 const root = resolve(__dirname, '../..');
 const release = process.argv.includes('--release');
 const target = join(root, 'target');
@@ -9,5 +11,5 @@ if (result.error) throw result.error;
 if (result.status !== 0) process.exit(result.status ?? 1);
 const library = { win32: 'docvera_node.dll', darwin: 'libdocvera_node.dylib', linux: 'libdocvera_node.so' }[process.platform];
 if (!library) throw new Error(`Unsupported platform: ${process.platform}`);
-copyFileSync(join(target, release ? 'release' : 'debug', library), join(__dirname, 'docvera_engine.node'));
+copyFileSync(join(target, release ? 'release' : 'debug', library), join(__dirname, binaryName));
 copyFileSync(join(root, 'LICENSE'), join(__dirname, 'LICENSE'));

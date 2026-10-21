@@ -1,0 +1,259 @@
+name: release
+
+# Triggered by v*.*.* tags. Publishes docvera-engine and docvera-cli to
+# crates.io, ONE native npm package (@a5i/docvera) containing all five platform
+# binaries (same packaging approach as eregex), and GitHub CLI archives.
+#
+# Setup:
+#   * CARGO_REGISTRY_TOKEN for crates.io.
+#   * npm Trusted Publishing (OIDC), no NPM_TOKEN:
+#     bootstrap ONLY @a5i/docvera with scripts/npm-trusted-publishing-bootstrap.sh,
+#     then register its Trusted Publisher: org a5i, repo docvera,
+#     workflow release.yml, environment empty, allow npm stage publish only.
+#   * Every release stages ONE npm package. Inspect and approve locally:
+#       npm stage list
+#       npm stage view <stage-id>
+#       npm stage download <stage-id>
+#       npm stage approve <stage-id>  # 2FA; one approval for all platforms
+#
+# Cargo workspace version and npm/docvera/package.json must match the tag.
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write # GitHub Release
+  id-token: write # npm provenance
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check-version:
+    name: Check version consistency
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify versions match tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME#v}"
+
+          # Single source of truth for the Rust crates is
+          # [workspace.package].version in the root Cargo.toml; every member
+          # inherits it via `version.workspace = true`.
+          WS_VERSION=$(awk '
+            /^\[workspace\.package\]/ { in_ws=1; next }
+            /^\[/                      { in_ws=0 }
+            in_ws && /^version *=/     { gsub(/version *= *"|"$/, ""); print; exit }
+          ' Cargo.toml)
+          NPM_VERSION=$(grep -m1 '"version"' npm/docvera/package.json | sed 's/.*: "\(.*\)".*/\1/' | tr -d ',')
+
+          echo "tag=$TAG"
+          echo "cargo (workspace) = $WS_VERSION"
+          echo "npm               = $NPM_VERSION"
+
+          # Every Cargo crate must inherit the workspace version (no literals).
+          grep -q '^version\.workspace = true$' crates/docvera-engine/Cargo.toml
+          grep -q '^version\.workspace = true$' crates/docvera-cli/Cargo.toml
+          grep -q '^version\.workspace = true$' crates/docvera-node/Cargo.toml
+
+          # The CLI reaches the engine through [workspace.dependencies]; that
+          # version requirement must match too, or the published CLI would
+          # resolve an older engine from crates.io.
+          ENGINE_REQ=$(sed -n 's/^docvera-engine = .*version = "\([^"]*\)".*/\1/p' Cargo.toml)
+          echo "engine requirement = $ENGINE_REQ"
+          test "$ENGINE_REQ" = "$TAG"
+
+
+          test "$WS_VERSION" = "$TAG"
+          test "$NPM_VERSION" = "$TAG"
+
+  test:
+    name: Test Rust core
+    runs-on: ubuntu-latest
+    needs: check-version
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Test workspace
+        run: cargo test --locked --workspace
+
+  publish-crate:
+    name: Publish crates to crates.io
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      # The CLI depends on the engine, so the engine must be published first
+      # and already visible in the crates.io index before the CLI's turn.
+      - name: Publish docvera-engine
+        run: cargo publish --locked -p docvera-engine
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+      - name: Wait for the crates.io index
+        run: sleep 60
+
+      - name: Publish docvera-cli
+        run: cargo publish --locked -p docvera-cli
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+  build:
+    name: Build ${{ matrix.platform }}
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest,    platform: linux-x64-gnu,   binary: docvera }
+          - { os: ubuntu-24.04-arm, platform: linux-arm64-gnu, binary: docvera }
+          - { os: macos-15-intel,   platform: darwin-x64,      binary: docvera }
+          - { os: macos-latest,     platform: darwin-arm64,    binary: docvera }
+          - { os: windows-latest,  platform: win32-x64-msvc,  binary: docvera.exe }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.platform }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build CLI (release)
+        run: cargo build --locked --release -p docvera-cli
+
+      # build.cjs writes the uniquely named binary docvera.<platform>.node.
+      - name: Build native addon (release)
+        working-directory: npm/docvera
+        run: npm run build:release
+
+      - name: Smoke-test addon against release CLI
+        working-directory: npm/docvera
+        run: npm test
+        env:
+          DOCVERA_BIN: ${{ github.workspace }}/target/release/${{ matrix.binary }}
+
+
+      - name: Archive CLI binary + checksum
+        shell: bash
+        run: |
+          cd target/release
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            7z a "../../docvera-${{ matrix.platform }}.zip" "${{ matrix.binary }}"
+          else
+            tar -czf "../../docvera-${{ matrix.platform }}.tar.gz" "${{ matrix.binary }}"
+          fi
+          cd ../..
+          sha256sum docvera-${{ matrix.platform }}.* | tee "sha256-${{ matrix.platform }}.txt"
+
+      - name: Upload npm binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-${{ matrix.platform }}
+          path: npm/docvera/docvera.${{ matrix.platform }}.node
+          if-no-files-found: error
+
+      - name: Upload CLI binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli-${{ matrix.platform }}
+          path: |
+            docvera-${{ matrix.platform }}.*
+            sha256-${{ matrix.platform }}.txt
+          if-no-files-found: error
+
+  publish-npm:
+    name: Stage npm package (pending 2FA approval)
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      # npm Trusted Publishing (OIDC) requires npm CLI >= 11.5.1; staged
+      # publishing (npm stage publish) requires npm CLI >= 11.15.0.
+      - name: Upgrade npm
+        run: npm install -g npm@latest
+
+      - name: Download platform binaries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: npm-*
+          path: npm/docvera
+          merge-multiple: true
+
+      - name: Select npm dist-tag
+        working-directory: npm/docvera
+        run: |
+          VERSION=$(node -p 'require("./package.json").version.split("+")[0]')
+          if [[ "$VERSION" == *-* ]]; then
+            echo "NPM_DIST_TAG=next" >> "$GITHUB_ENV"
+          else
+            echo "NPM_DIST_TAG=latest" >> "$GITHUB_ENV"
+          fi
+
+      - name: Validate single npm package
+        working-directory: npm/docvera
+        run: |
+          cp ../../LICENSE LICENSE
+          npm run validate:release
+          npm pack --dry-run
+
+      - name: Stage npm package
+        working-directory: npm/docvera
+        run: npm stage publish --access public --tag "$NPM_DIST_TAG"
+
+      - name: Pending approval reminder
+        run: |
+          echo "One @a5i/docvera package staged for ${GITHUB_REF_NAME#v}, containing all five platforms."
+          echo "Inspect with npm stage list/view/download, then approve locally with 2FA:"
+          echo "  npm stage approve <stage-id>"
+          echo "npm dist-tag: $NPM_DIST_TAG"
+
+  github-release:
+    name: GitHub Release with CLI binaries
+    runs-on: ubuntu-latest
+    needs: [test, build]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download CLI binaries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: cli-*
+          path: dist
+          merge-multiple: true
+
+      - name: Create release
+        shell: bash
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "docvera ${GITHUB_REF_NAME#v}" \
+            --generate-notes \
+            dist/*
+        env:
+          GH_TOKEN: ${{ github.token }}

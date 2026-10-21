@@ -7,9 +7,18 @@ resolver = "2"
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
+repository = "https://github.com/a5i/docvera"
+rust-version = "1.89"
+authors = ["docvera contributors"]
 
 [workspace.dependencies]
 anyhow = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 docvera-engine = { path = "crates/docvera-engine", version = "0.1.0" }
+
+# Native addon and CLI binaries benefit from a tight release profile.
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3
