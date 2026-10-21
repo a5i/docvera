@@ -1,0 +1,14 @@
+# cargo-audit configuration
+# Docs: https://github.com/rustsec/cargo-audit
+# Run locally: cargo audit
+
+[advisories]
+# Keep in sync with deny.toml [advisories.ignore].
+# quick-xml 0.37 DoS (RUSTSEC-2026-0194, RUSTSEC-2026-0195): fix requires
+# quick-xml >= 0.41, but oxrdfxml 0.2.x / sparesults 0.3.x (via oxigraph 0.5
+# / rudof 0.3) semver-pin 0.37. XML/RDF input here is developer-supplied,
+# not untrusted network input. Remove when upstream bumps quick-xml.
+ignore = [
+    "RUSTSEC-2026-0194",
+    "RUSTSEC-2026-0195",
+]

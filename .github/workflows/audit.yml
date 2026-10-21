@@ -1,0 +1,42 @@
+name: Security audit
+on:
+  push:
+    paths:
+      - "Cargo.lock"
+      - "Cargo.toml"
+      - "crates/**/Cargo.toml"
+      - "deny.toml"
+      - ".cargo/audit.toml"
+      - ".github/workflows/audit.yml"
+  pull_request:
+    paths:
+      - "Cargo.lock"
+      - "Cargo.toml"
+      - "crates/**/Cargo.toml"
+      - "deny.toml"
+      - ".cargo/audit.toml"
+      - ".github/workflows/audit.yml"
+  # Weekly: catch new advisories published after the code last changed.
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: taiki-e/install-action@v2
+        with:
+          # Pin tool versions; bump deliberately.
+          tool: cargo-audit@0.22.2,cargo-deny@0.20.2
+      # Scans Cargo.lock against the RustSec advisory database.
+      # Ignores are configured in .cargo/audit.toml.
+      - run: cargo audit
+      # Advisories + licenses + bans (duplicates, wildcards) + sources.
+      # Ignores are configured in deny.toml.
+      - run: cargo deny check

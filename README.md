@@ -159,3 +159,12 @@ npm --prefix npm/mdx test
 The Rust integration suite covers valid/invalid structure, metadata, duplicate YAML keys, duplicate IDs, typed relations, anchors, Unicode/CRLF, schema invalidation, updates/deletions, SQL restrictions and graph cycles. Node tests compare CLI/native results across the full lifecycle.
 
 GitHub Actions runs these checks on Linux x64/arm64, macOS x64/arm64 and Windows x64, then builds release CLI/native npm artifacts. These are CI targets, not a claim that remote CI has already passed. Local validation was performed on Linux x64. No npm dependencies are needed for the facade or tests.
+
+Supply-chain checks — RustSec advisories (`cargo audit`), plus cargo-deny advisories/licenses/bans/sources — run locally with:
+
+```sh
+cargo audit          # config: .cargo/audit.toml
+cargo deny check     # config: deny.toml
+```
+
+Both enforce deny-by-default with narrowly-scoped, reason-annotated ignores for advisories currently unfixable upstream (quick-xml 0.37 DoS pair pinned by oxigraph/rudof; two unmaintained transitive crates inside `rudof_rdf`). When upgrading `rudof`/`oxigraph`, remove matching ignore entries and re-run. CI runs the same two commands on dependency changes and weekly (`.github/workflows/audit.yml`) to catch advisories published after the code last changed.
