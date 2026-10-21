@@ -573,7 +573,7 @@ dependencies = [
 
 [[package]]
 name = "docvera-cli"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "anyhow",
  "clap",
@@ -584,7 +584,7 @@ dependencies = [
 
 [[package]]
 name = "docvera-engine"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "anyhow",
  "blake3",
@@ -608,7 +608,7 @@ dependencies = [
 
 [[package]]
 name = "docvera-node"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "anyhow",
  "docvera-engine",

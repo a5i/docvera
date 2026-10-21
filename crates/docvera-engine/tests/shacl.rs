@@ -455,11 +455,15 @@ fn shape_symlinks_cannot_escape_the_workspace() {
 
 #[test]
 fn policy_paths_are_explicit_local_turtle_files() {
+    let external = tempfile::tempdir().unwrap();
+    // Use a native absolute path; `/tmp/...` is only drive-rooted on Windows.
+    // JSON string escaping is also valid for these TOML basic strings.
+    let absolute_paths = serde_json::to_string(&[external.path().join("policy.ttl")]).unwrap();
     for (paths, expected) in [
         ("[]", "must not be empty"),
         ("[\"policies/missing.ttl\"]", "Cannot load SHACL"),
         ("[\"policies/core.json\"]", "workspace-relative .ttl"),
-        ("[\"/tmp/policy.ttl\"]", "workspace-relative .ttl"),
+        (absolute_paths.as_str(), "workspace-relative .ttl"),
         ("[\"policies/*.ttl\"]", "Cannot load SHACL"),
         (
             "[\"policies/core.ttl\", \"policies/../policies/core.ttl\"]",
