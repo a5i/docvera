@@ -43,9 +43,10 @@ fn reader(root: &Path) -> Result<Connection> {
     Ok(conn)
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct IndexResult {
+    #[schemars(extend("const" = CONTRACT_VERSION))]
     pub contract_version: u32,
     pub documents: usize,
     pub updated: usize,

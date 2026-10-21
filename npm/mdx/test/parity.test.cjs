@@ -45,3 +45,41 @@ test('native Node API and CLI return equivalent full-cycle contracts', async () 
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('targetTypes alternatives have CLI/native parity and invalidate indexed diagnostics', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'mdx-target-types-'));
+  let engine;
+  try {
+    cli(root, 'init');
+    const schemaPath = join(root, 'schemas/adr.yaml');
+    const original = readFileSync(schemaPath, 'utf8');
+    writeFileSync(schemaPath, original.replace('targetType: feature', 'targetTypes: [feature, test-plan]'));
+    const documentPath = join(root, 'docs/adr-0001.md');
+    writeFileSync(documentPath, readFileSync(documentPath, 'utf8').replace(
+      'related: [FEATURE-0042]', 'related: [FEATURE-0042, TEST-0001]'));
+    engine = await openWorkspace({ root });
+    const valid = await engine.check();
+    assert.deepEqual(valid, cli(root, 'check'));
+    assert.deepEqual(valid.diagnostics, []);
+    await engine.index();
+
+    writeFileSync(schemaPath, original.replace('targetType: feature', 'targetTypes: [feature]'));
+    const invalid = await engine.check();
+    assert.ok(invalid.diagnostics.some(d => d.rule === 'relation.target' && d.message.includes('wrong-type')));
+    try {
+      cli(root, 'check');
+      assert.fail('CLI check should reject a wrong target type');
+    } catch (error) {
+      assert.equal(error.status, 1);
+      assert.deepEqual(invalid, JSON.parse(error.stdout));
+    }
+    await engine.index();
+    const sql = "SELECT rule,message FROM diagnostics WHERE rule='relation.target'";
+    const report = await engine.querySql(sql);
+    assert.equal(report.rows.length, 1);
+    assert.deepEqual(report, cli(root, 'query', 'sql', sql));
+  } finally {
+    if (engine) await engine.close();
+    rmSync(root, { recursive: true, force: true });
+  }
+});

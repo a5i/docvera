@@ -6,6 +6,20 @@ on:
 permissions:
   contents: read
 jobs:
+  checker-only:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: checker-only
+      - run: cargo test --locked -p md-engine --no-default-features
+      - run: cargo test --locked -p md-engine --no-default-features --features index
+      - run: cargo test --locked -p md-engine --no-default-features --features shacl
+      - run: cargo build --locked -p md-engine --no-default-features --target wasm32-unknown-unknown
   test-build:
     strategy:
       fail-fast: false

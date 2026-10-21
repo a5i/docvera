@@ -1,3 +1,4 @@
+#![cfg(all(feature = "index", feature = "shacl"))]
 use md_engine::{Workspace, index, model::RdfTerm};
 use std::{fs, path::Path};
 use tempfile::TempDir;

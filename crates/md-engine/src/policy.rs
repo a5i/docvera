@@ -55,8 +55,7 @@ fn parse(text: &str, name: &str) -> Result<OxigraphInMemory> {
 
 impl Policies {
     pub fn load(root: &Path, config: Option<&Shacl>) -> Result<Self> {
-        let mut sources = vec![];
-        let mut merged = String::new();
+        let mut sources = BTreeMap::new();
         if let Some(config) = config {
             let mut paths = BTreeSet::new();
             for path in &config.shapes {
@@ -70,7 +69,31 @@ impl Policies {
                 if !paths.insert(canonical.clone()) {
                     bail!("Duplicate SHACL shapes file: {path}");
                 }
-                let mut text = fs::read_to_string(canonical)?;
+                sources.insert(path.clone(), fs::read_to_string(canonical)?);
+            }
+        }
+        Self::from_sources(config, &sources)
+    }
+
+    pub fn from_sources(config: Option<&Shacl>, input: &BTreeMap<String, String>) -> Result<Self> {
+        let mut sources = vec![];
+        let mut merged = String::new();
+        if let Some(config) = config {
+            if config.shapes.is_empty() {
+                bail!("SHACL shapes must not be empty");
+            }
+            let mut paths = BTreeSet::new();
+            for path in &config.shapes {
+                crate::checker::normalize_path(path)?;
+                if Path::new(path).extension().and_then(|s| s.to_str()) != Some("ttl")
+                    || !paths.insert(path)
+                {
+                    bail!("SHACL shapes must be unique workspace-relative .ttl paths: {path}");
+                }
+                let mut text = input
+                    .get(path)
+                    .with_context(|| format!("Cannot load SHACL shapes {path}"))?
+                    .clone();
                 // Turtle permits a BOM only as the first character. Oxigraph's
                 // lexer can swallow a BOM into the following token (observed:
                 // `sh:NodeShape\ufeff` corrupts the rdf:type IRI so the shape

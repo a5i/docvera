@@ -1,14 +1,24 @@
+pub mod checker;
 pub mod config;
+pub mod contracts;
+#[cfg(feature = "index")]
 pub mod index;
 pub mod model;
 pub mod parser;
+#[cfg(feature = "shacl")]
+mod policy;
+#[cfg(not(feature = "shacl"))]
+#[path = "policy_disabled.rs"]
 mod policy;
 pub mod schema;
+#[cfg(feature = "shacl")]
 mod shacl_report;
 mod source_map;
+mod toml_source_map;
 pub mod workspace;
 
 use anyhow::{Context, Result, bail};
+pub use checker::{CheckerContext, WorkspaceSources};
 use std::{
     fs::{self, OpenOptions},
     io::Write,

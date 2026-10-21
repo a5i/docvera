@@ -1,3 +1,4 @@
+#![cfg(all(feature = "index", feature = "shacl"))]
 #[path = "../../../tests/support/mod.rs"]
 mod support;
 

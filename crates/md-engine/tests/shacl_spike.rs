@@ -1,4 +1,5 @@
 //! Dependency/conformance gate for the pinned Rudof adapter (RFC WP0).
+#![cfg(feature = "shacl")]
 use rudof_rdf::{
     rdf_core::RDFFormat,
     rdf_impl::{OxigraphInMemory, ReaderMode},

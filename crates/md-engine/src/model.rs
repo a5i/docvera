@@ -3,7 +3,7 @@ use serde_json::Value;
 
 pub const CONTRACT_VERSION: u32 = 1;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Span {
     pub start: usize,
@@ -35,7 +35,7 @@ impl Span {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Diagnostic {
     pub path: String,
@@ -48,7 +48,9 @@ pub struct Diagnostic {
 }
 
 /// Adapter-owned representation: no Rudof structs in the public contract.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, schemars::JsonSchema, PartialEq, Eq, PartialOrd, Ord,
+)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum RdfTerm {
     Iri {
@@ -64,7 +66,9 @@ pub enum RdfTerm {
     },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, schemars::JsonSchema, PartialEq, Eq, PartialOrd, Ord,
+)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum RdfPath {
     Predicate { iri: String },
@@ -76,7 +80,9 @@ pub enum RdfPath {
     ZeroOrOne { path: Box<RdfPath> },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, schemars::JsonSchema, PartialEq, Eq, PartialOrd, Ord,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct ShaclMessage {
     pub value: String,
@@ -84,7 +90,9 @@ pub struct ShaclMessage {
     pub language: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, schemars::JsonSchema, PartialEq, Eq, PartialOrd, Ord,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct ShaclResult {
     pub focus_node: RdfTerm,
@@ -102,7 +110,7 @@ pub struct ShaclResult {
     pub source_field: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Section {
     pub id: String,
@@ -115,20 +123,20 @@ pub struct Section {
     pub direct_end: usize,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Node {
     pub kind: String,
     pub language: Option<String>,
     pub span: Span,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Link {
     pub target: String,
     pub span: Span,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Document {
     pub path: String,
@@ -203,7 +211,7 @@ impl Document {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Relation {
     pub source: String,
@@ -214,9 +222,10 @@ pub struct Relation {
     pub span: Span,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct CheckResult {
+    #[schemars(extend("const" = CONTRACT_VERSION))]
     pub contract_version: u32,
     pub documents: usize,
     pub diagnostics: Vec<Diagnostic>,

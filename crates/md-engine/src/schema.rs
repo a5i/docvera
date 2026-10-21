@@ -1,9 +1,12 @@
 use crate::model::*;
 use anyhow::{Result, bail};
 use regex::Regex;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
+
+/// Supported document-schema envelope format.
+pub const SCHEMA_VERSION: u32 = 1;
 
 fn yes() -> bool {
     true
@@ -15,9 +18,10 @@ fn default_scope() -> String {
     "documentType".into()
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Schema {
+    #[schemars(extend("const" = SCHEMA_VERSION))]
     pub schema_version: u32,
     pub document_type: String,
     #[serde(default)]
@@ -31,25 +35,33 @@ pub struct Schema {
     #[serde(default)]
     pub lint: Lint,
 }
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Identity {
     pub field: String,
     #[serde(default = "default_scope")]
     pub unique_within: String,
 }
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct RelationRule {
     pub from: String,
     pub target_type: Option<String>,
+    pub target_types: Option<Vec<String>>,
     #[serde(default = "yes")]
     pub must_exist: bool,
     #[serde(default)]
     pub min: usize,
     pub max: Option<usize>,
 }
-#[derive(Debug, Clone, Default, Deserialize)]
+impl RelationRule {
+    pub fn allowed_target_types(&self) -> Option<&[String]> {
+        self.target_types
+            .as_deref()
+            .or_else(|| self.target_type.as_ref().map(std::slice::from_ref))
+    }
+}
+#[derive(Debug, Clone, Default, Deserialize, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Lint {
     #[serde(default)]
@@ -57,7 +69,7 @@ pub struct Lint {
     #[serde(default)]
     pub no_trailing_spaces: bool,
 }
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Body {
     #[serde(default = "yes")]
@@ -79,7 +91,7 @@ impl Default for Body {
         }
     }
 }
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SectionRule {
     pub title: Option<String>,
@@ -97,7 +109,7 @@ pub struct SectionRule {
     #[serde(default)]
     pub children: Body,
 }
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ContentRule {
     pub kind: String,
@@ -116,7 +128,7 @@ pub fn field<'a>(metadata: &'a Value, path: &str) -> Option<&'a Value> {
 }
 impl Schema {
     pub fn check_definition(&self) -> Result<()> {
-        if self.schema_version != 1 {
+        if self.schema_version != SCHEMA_VERSION {
             bail!("Unsupported schemaVersion: {}", self.schema_version);
         }
         if self.document_type.is_empty() {
@@ -134,6 +146,18 @@ impl Schema {
             }
         }
         for relation in &self.relations {
+            if relation.target_type.is_some() && relation.target_types.is_some() {
+                bail!("Relation targetType and targetTypes are mutually exclusive");
+            }
+            if let Some(types) = &relation.target_types {
+                if types.is_empty() || types.iter().any(|t| t.trim().is_empty()) {
+                    bail!("Relation targetTypes must be a non-empty list of non-empty type names");
+                }
+                let unique: std::collections::HashSet<_> = types.iter().collect();
+                if unique.len() != types.len() {
+                    bail!("Relation targetTypes must not contain duplicate type names");
+                }
+            }
             if !relation.from.starts_with("frontMatter.") {
                 bail!("Only metadata relation sources are supported");
             }

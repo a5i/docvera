@@ -129,18 +129,23 @@ main().catch(console.error);
 
 CPU and file/database work runs on Rust blocking workers, not the Node event loop. API methods return the same versioned JSON objects as the CLI. TypeScript declarations are included. Construction is lazy; operations open their own database connections. `close()` rejects new operations and waits for active work.
 
+For unsaved editor buffers, use `openChecker({ root })` and `checkDocument(path, text)` instead of repeatedly rescanning disk with `openWorkspace().check()`. Rust also exposes `CheckerContext::from_sources` for a fully in-memory workspace. See [checker API, snapshot semantics, parser/front-matter options and checker-only/WASM builds](docs/checker.md).
+
 ## CLI contracts
 
 ```sh
 mdx --help
 mdx guide                     # complete offline manual with examples + schema/SHACL references
+mdx schema config > mdx.config.schema.json      # generated from Rust/Serde types
+mdx schema document > mdx.document.schema.json  # envelope/section DSL contract
+mdx schema check-result                        # serialized checker result contract
 mdx guide --format json       # same manual and command contracts for AI agents
 mdx contract --format json
 mdx check --warnings-as-errors --format json
 ```
 
 - `--root` and `--format` are global and can appear before/after a subcommand.
-- `json`: one versioned result object; `jsonl`: the same envelope on one compact line.
+- `json`: one versioned result object (except `schema`, which emits a bare JSON Schema); `jsonl`: the same envelope on one compact line.
 - Exit **0**: success; **1**: validation failed; **2**: operational/usage error.
 - Lint and SHACL warnings do not fail checks unless `--warnings-as-errors` is set.
 - SQL: SQLite syntax, five public tables (`documents`, `sections`, `nodes`, `relations`, `diagnostics`), allowlisted functions, no writes/ATTACH/PRAGMA/extension loading, 1,000-row cap and approximately two-second VM deadline. This is defense in depth, **not a memory-isolated adversarial SQL sandbox**.

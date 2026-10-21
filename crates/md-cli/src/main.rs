@@ -81,6 +81,11 @@ enum Command {
     Extract { section_id: String },
     /// Print the complete offline usage guide with examples (JSON for agents).
     Guide,
+    /// Print a generated JSON Schema (no workspace required).
+    Schema {
+        #[arg(value_enum)]
+        kind: SchemaKind,
+    },
     /// Print versioned machine-readable command and result contracts.
     Contract,
 }
@@ -88,6 +93,28 @@ enum Command {
 enum Query {
     Sql { sql: String },
 }
+#[derive(Clone, Copy, ValueEnum)]
+enum SchemaKind {
+    Config,
+    Document,
+    CheckResult,
+    Diagnostic,
+    IndexResult,
+}
+
+/// Prose command metadata stays explicit; data schemas are always generated.
+fn contract() -> Result<Value> {
+    let mut descriptor: Value =
+        serde_json::from_str(include_str!("../../../docs/contracts/v1.json"))?;
+    let schemas = serde_json::to_value(md_engine::contracts::json_schemas())?;
+    // Keep the descriptor's compact field lists in sync too, not just its full schemas.
+    descriptor["results"]["check"] = schemas["check-result"]["required"].clone();
+    descriptor["results"]["index"] = schemas["index-result"]["required"].clone();
+    descriptor["diagnostic"] = schemas["diagnostic"]["required"].clone();
+    descriptor["jsonSchemas"] = schemas;
+    Ok(descriptor)
+}
+
 #[derive(Clone, ValueEnum)]
 enum Direction {
     Incoming,
@@ -153,14 +180,22 @@ fn run(cli: &Cli) -> Result<(Value, u8)> {
             json!({
                 "contractVersion": 1,
                 "guide": GUIDE,
-                "contract": serde_json::from_str::<Value>(include_str!("../../../docs/contracts/v1.json"))?,
+                "contract": contract()?,
             }),
             0,
         ),
-        Command::Contract => (
-            serde_json::from_str(include_str!("../../../docs/contracts/v1.json"))?,
-            0,
-        ),
+        Command::Schema { kind } => {
+            use md_engine::contracts;
+            let schema = match kind {
+                SchemaKind::Config => contracts::config_schema(),
+                SchemaKind::Document => contracts::document_schema(),
+                SchemaKind::CheckResult => contracts::check_result_schema(),
+                SchemaKind::Diagnostic => contracts::diagnostic_schema(),
+                SchemaKind::IndexResult => contracts::index_result_schema(),
+            };
+            (serde_json::to_value(schema)?, 0)
+        }
+        Command::Contract => (contract()?, 0),
     })
 }
 fn emit(value: &Value, format: Format) -> Result<()> {

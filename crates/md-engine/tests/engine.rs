@@ -1,3 +1,4 @@
+#![cfg(feature = "index")]
 use md_engine::{
     Workspace,
     index::{self, SearchOptions},

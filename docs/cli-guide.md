@@ -33,7 +33,7 @@ Global options may appear before or after a subcommand.
 - `--root PATH`: workspace directory; default is the current directory (`.`).
 - `--format human`: default. `check` prints source diagnostics and a summary;
   `guide` prints Markdown; other commands print pretty JSON.
-- `--format json`: one pretty-printed versioned JSON result object on stdout.
+- `--format json`: one pretty-printed versioned JSON result object on stdout (`schema` emits a bare JSON Schema instead).
 - `--format jsonl`: one compact versioned result object per invocation, not one
   line per diagnostic, SQL row or search hit.
 - `-h`, `--help`: show syntax; `-V`, `--version`: show the CLI version.
@@ -202,12 +202,42 @@ Human mode still prints the result object; read `markdown` in JSON mode for cont
 mdx --root demo extract 'docs/feature-0042.md#security' --format json
 ```
 
+### schema
+
+Usage: `mdx schema <config|document|check-result|diagnostic|index-result>`.
+
+Prints a standalone JSON Schema 2020-12 generated from the Rust types used by
+Serde. No workspace, configuration, index or network is needed; `--root` is not
+accessed. `document` describes a document-schema envelope, not front-matter data.
+
+```sh
+mdx schema config > mdx.config.schema.json
+mdx schema document > mdx.document.schema.json
+mdx schema check-result --format json
+mdx schema diagnostic --format jsonl
+mdx schema index-result
+```
+
+This command intentionally emits a **bare schema**, without a `contractVersion`
+wrapper, so the output can be consumed directly by an editor or validator.
+Human/JSON formats pretty-print it; JSONL prints the same schema on one line.
+The generated `$id` is a versioned URN, not a downloadable schema URL.
+
+Input schemas describe Serde deserialization (names, types, defaults, required
+fields and unknown-field rejection). Output schemas describe serialization.
+Config/schema loading still uses Serde plus Rust semantic validation; arbitrary
+regex validity, cross-field constraints and filesystem checks are not inferred
+from Rust code. A structural schema check does not replace `mdx check`.
+
 ### contract
 
 Usage: `mdx contract`.
-Prints the v1 machine-readable command/result descriptor. No workspace or index
-is needed. `contractVersion` versions the data contract, not the binary release.
-The descriptor is not a complete JSON Schema/OpenAPI definition.
+Prints the v1 machine-readable command/result descriptor, including `jsonSchemas`
+generated from Rust/Serde types (the same schemas returned by `schema`). No
+workspace or index is needed. `contractVersion` versions result envelopes, not
+the binary release or the JSON Schema draft. Command descriptions/exit-code
+semantics remain explicit metadata; this is not a complete OpenAPI definition.
+SQL/graph/search/extract result schemas and TypeScript declarations are not yet generated.
 
 ```sh
 mdx contract --format json

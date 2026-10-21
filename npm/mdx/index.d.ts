@@ -87,3 +87,19 @@ export interface Workspace {
 }
 /** Construction is lazy; I/O and validation occur in the individual operations. */
 export function openWorkspace(options?: { root?: string }): Promise<Workspace>;
+
+/** A snapshot, not a watcher. Portable workspace-relative paths; UTF-8 source text.
+ * Reopen after config/shapes/asset changes; schemas can be updated in memory. Operations are serialized by the native checker. */
+export interface Checker {
+  check(): Promise<CheckResult>;
+  /** Does not change the baseline. Excluded paths return documents=0. */
+  checkDocument(path: string, text: string): Promise<CheckResult>;
+  /** Overlay check including diagnostics affected in other documents. */
+  checkWithText(path: string, text: string): Promise<CheckResult>;
+  /** Register/replace schema text without disk I/O; invalid schemas produce document diagnostics. */
+  updateSchema(path: string, text: string): Promise<void>;
+  updateDocument(path: string, text: string): Promise<void>;
+  removeDocument(path: string): Promise<void>;
+  close(): Promise<void>;
+}
+export function openChecker(options?: { root?: string }): Promise<Checker>;
