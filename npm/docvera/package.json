@@ -1,6 +1,6 @@
 {
   "name": "@a5i/docvera",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Native Node.js bindings for docvera, a schema-validated, indexed and queryable Markdown knowledge engine",
   "license": "MIT",
   "type": "commonjs",

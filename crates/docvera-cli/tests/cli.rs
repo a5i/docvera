@@ -214,8 +214,12 @@ fn guide_is_complete_offline_and_available_in_all_formats() {
     assert!(human.stderr.is_empty());
     let text = String::from_utf8(human.stdout).unwrap();
     assert!(text.starts_with("# docvera CLI guide\n"));
-    assert!(text.contains(include_str!("../assets/schema.md")));
-    assert!(text.contains(include_str!("../assets/shacl.md")));
+    assert!(
+        !text.contains('\r'),
+        "guide output must use LF on every platform"
+    );
+    assert!(text.contains(&include_str!("../assets/schema.md").replace("\r\n", "\n")));
+    assert!(text.contains(&include_str!("../assets/shacl.md").replace("\r\n", "\n")));
     assert!(text.contains("## Workflow for an AI agent"));
 
     let result = json(&root, &["guide"], 0);

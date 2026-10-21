@@ -1,10 +1,4 @@
-const GUIDE: &str = concat!(
-    include_str!("../assets/cli-guide.md"),
-    "\n---\n\n",
-    include_str!("../assets/schema.md"),
-    "\n---\n\n",
-    include_str!("../assets/shacl.md"),
-);
+mod guide;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand, ValueEnum};
@@ -178,7 +172,7 @@ fn run(cli: &Cli) -> Result<(Value, u8)> {
         Command::Guide => (
             json!({
                 "contractVersion": 1,
-                "guide": GUIDE,
+                "guide": guide::text(),
                 "contract": contract()?,
             }),
             0,

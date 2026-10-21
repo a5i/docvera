@@ -28,7 +28,7 @@ Install the CLI into `~/.cargo/bin` (assumed to be on `PATH`):
 
 ```sh
 cargo install --locked --path crates/docvera-cli
-docvera --version   # docvera 0.1.0
+docvera --version   # docvera 0.1.1
 ```
 
 Updating is the same command re-run over the existing installation. A local build without installing works too: `cargo build --locked --release -p docvera-cli`, then use `target/release/docvera` (Windows: `target\release\docvera.exe`).
