@@ -544,3 +544,28 @@ fn non_utf8_schema_error_names_the_schema_file() {
         diagnostic.message
     );
 }
+
+#[test]
+fn corrupt_index_span_fails_closed_instead_of_panicking() {
+    let dir = fixture();
+    let root = dir.path();
+    index::index(&Workspace::load(root).unwrap(), false).unwrap();
+    let conn = rusqlite::Connection::open(root.join(".mdx/index.sqlite3")).unwrap();
+    let section_id: String = conn
+        .query_row("SELECT section_id FROM sections LIMIT 1", [], |r| r.get(0))
+        .unwrap();
+    conn.execute(
+        "UPDATE sections SET span=?1 WHERE section_id=?2",
+        rusqlite::params![
+            r#"{"start":999999,"end":9999999,"line":1,"column":1,"endLine":1,"endColumn":1}"#,
+            section_id
+        ],
+    )
+    .unwrap();
+    drop(conn);
+    let error = index::extract(root, &section_id).unwrap_err();
+    assert!(
+        format!("{error:#}").contains("rebuild"),
+        "expected rebuild hint, got: {error:#}"
+    );
+}

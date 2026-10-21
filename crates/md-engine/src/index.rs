@@ -343,12 +343,17 @@ pub fn search(root: &Path, options: &SearchOptions) -> Result<Value> {
     Ok(json!({"contractVersion": CONTRACT_VERSION, "results": results}))
 }
 
+// Spans come from the index database, not from the parser: slice defensively.
+#[deny(clippy::indexing_slicing)]
 pub fn extract(root: &Path, section_id: &str) -> Result<Value> {
     let conn = reader(root)?;
     let (source, span, path): (String, String, String) = conn.query_row("SELECT d.source,s.span,d.path FROM sections s JOIN documents d ON d.path=s.document_id WHERE s.section_id=?1", [section_id], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?;
     let span: Span = serde_json::from_str(&span)?;
+    let Some(markdown) = source.get(span.start..span.end) else {
+        bail!("Corrupt section span in index for {section_id}; remove .mdx and rebuild");
+    };
     Ok(
-        json!({"contractVersion": CONTRACT_VERSION, "sectionId": section_id, "path": path, "location": span, "markdown": source[span.start..span.end]}),
+        json!({"contractVersion": CONTRACT_VERSION, "sectionId": section_id, "path": path, "location": span, "markdown": markdown}),
     )
 }
 
