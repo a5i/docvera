@@ -193,3 +193,64 @@ fn failed_init_leaves_no_config_and_can_be_retried() {
         ]
     );
 }
+
+#[test]
+fn guide_is_complete_offline_and_available_in_all_formats() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join("nonexistent-workspace");
+    let human = run(&root, &["guide"]);
+    assert!(human.status.success());
+    assert!(human.stderr.is_empty());
+    let text = String::from_utf8(human.stdout).unwrap();
+    assert!(text.starts_with("# mdx CLI guide\n"));
+    assert!(text.contains(include_str!("../../../docs/schema.md")));
+    assert!(text.contains(include_str!("../../../docs/shacl.md")));
+    assert!(text.contains("## Workflow for an AI agent"));
+
+    let result = json(&root, &["guide"], 0);
+    assert_eq!(result["guide"], text);
+    let contract = json(&root, &["contract"], 0);
+    assert_eq!(result["contract"], contract);
+    for command in contract["commands"].as_object().unwrap().keys() {
+        assert!(text.contains(&format!("### {command}\n")), "{command}");
+    }
+    let compact = run(&root, &["guide", "--format", "jsonl"]);
+    assert!(compact.status.success());
+    assert!(compact.stderr.is_empty());
+    assert_eq!(String::from_utf8_lossy(&compact.stdout).lines().count(), 1);
+    assert_eq!(
+        serde_json::from_slice::<Value>(&compact.stdout).unwrap(),
+        result
+    );
+    let help = run(&root, &["--help"]);
+    assert!(help.status.success());
+    let help = String::from_utf8(help.stdout).unwrap();
+    assert!(help.contains("mdx guide"));
+    assert!(help.contains("mdx guide --format json"));
+    assert!(!root.exists(), "documentation must not create a workspace");
+    assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 0);
+}
+
+#[test]
+fn guide_sql_and_graph_examples_work_on_initialized_workspace() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    json(root, &["init"], 0);
+    json(root, &["index"], 0);
+    for sql in [
+        "SELECT declared_id,type,path FROM documents ORDER BY path",
+        "SELECT * FROM sections LIMIT 1",
+        "SELECT * FROM nodes LIMIT 1",
+        "SELECT * FROM relations LIMIT 10",
+        "SELECT document_id,rule,severity,message FROM diagnostics ORDER BY document_id,rule",
+        "SELECT document_id,json_extract(shacl,'$.sourceField') AS field FROM diagnostics WHERE shacl IS NOT NULL",
+    ] {
+        assert!(include_str!("../../../docs/cli-guide.md").contains(sql));
+        assert!(json(root, &["query", "sql", sql], 0)["rows"].is_array());
+    }
+    json(
+        root,
+        &["graph", "outgoing", "docs/test-0001.md", "--depth", "1"],
+        0,
+    );
+}

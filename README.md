@@ -133,6 +133,8 @@ CPU and file/database work runs on Rust blocking workers, not the Node event loo
 
 ```sh
 mdx --help
+mdx guide                     # complete offline manual with examples + schema/SHACL references
+mdx guide --format json       # same manual and command contracts for AI agents
 mdx contract --format json
 mdx check --warnings-as-errors --format json
 ```

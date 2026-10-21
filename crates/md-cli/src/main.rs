@@ -1,3 +1,11 @@
+const GUIDE: &str = concat!(
+    include_str!("../../../docs/cli-guide.md"),
+    "\n---\n\n",
+    include_str!("../../../docs/schema.md"),
+    "\n---\n\n",
+    include_str!("../../../docs/shacl.md"),
+);
+
 use anyhow::Result;
 use clap::{Parser, Subcommand, ValueEnum};
 use md_engine::{
@@ -15,7 +23,8 @@ use std::{
 #[command(
     name = "mdx",
     version,
-    about = "Local-first Markdown schema validator and knowledge engine"
+    about = "Local-first Markdown schema validator and knowledge engine",
+    after_help = "Run `mdx guide` for the complete offline manual with examples.\nFor AI agents: `mdx guide --format json` includes the manual and command contracts."
 )]
 struct Cli {
     #[arg(long, global = true, default_value = ".")]
@@ -70,6 +79,8 @@ enum Command {
     },
     /// Retrieve original Markdown for a section ID from the indexed snapshot.
     Extract { section_id: String },
+    /// Print the complete offline usage guide with examples (JSON for agents).
+    Guide,
     /// Print versioned machine-readable command and result contracts.
     Contract,
 }
@@ -138,6 +149,14 @@ fn run(cli: &Cli) -> Result<(Value, u8)> {
             0,
         ),
         Command::Extract { section_id } => (index::extract(root, section_id)?, 0),
+        Command::Guide => (
+            json!({
+                "contractVersion": 1,
+                "guide": GUIDE,
+                "contract": serde_json::from_str::<Value>(include_str!("../../../docs/contracts/v1.json"))?,
+            }),
+            0,
+        ),
         Command::Contract => (
             serde_json::from_str(include_str!("../../../docs/contracts/v1.json"))?,
             0,
@@ -150,7 +169,9 @@ fn emit(value: &Value, format: Format) -> Result<()> {
         Format::Json => writeln!(out, "{}", serde_json::to_string_pretty(value)?)?,
         Format::Jsonl => writeln!(out, "{}", serde_json::to_string(value)?)?,
         Format::Human => {
-            if let Some(diagnostics) = value.get("diagnostics").and_then(Value::as_array) {
+            if let Some(guide) = value.get("guide").and_then(Value::as_str) {
+                write!(out, "{guide}")?;
+            } else if let Some(diagnostics) = value.get("diagnostics").and_then(Value::as_array) {
                 for d in diagnostics {
                     writeln!(
                         out,

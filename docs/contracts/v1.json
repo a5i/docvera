@@ -8,11 +8,13 @@
     "graph": "incoming|outgoing ID --depth 0..32; IDs must resolve uniquely or use document path",
     "search": "Literal phrase, BM25, optional --type/--section/--limit (max 100)",
     "extract": "Original indexed Markdown by section ID: relative/path.md#anchor",
+    "guide": "Complete offline CLI manual with examples, schema and SHACL references; JSON includes guide Markdown and contract descriptor",
     "contract": "This descriptor"
   },
   "globalOptions": { "root": "Workspace directory, default .", "format": ["human", "json", "jsonl"] },
   "exitCodes": { "0": "success (index can contain invalid documents)", "1": "check has errors, or warnings with --warnings-as-errors", "2": "operation/usage failure" },
   "results": {
+    "guide": ["contractVersion", "guide", "contract"],
     "check": ["contractVersion", "documents", "diagnostics"],
     "index": ["contractVersion", "documents", "updated", "deleted", "diagnostics"],
     "query": ["contractVersion", "rows"],
