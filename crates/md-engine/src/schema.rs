@@ -3,6 +3,7 @@ use anyhow::{Result, bail};
 use regex::Regex;
 use serde::Deserialize;
 use serde_json::Value;
+use std::collections::HashMap;
 
 fn yes() -> bool {
     true
@@ -191,7 +192,54 @@ impl Schema {
     }
 }
 
-pub fn validate(doc: &mut Document, schema: &Schema) -> Result<()> {
+/// Artifacts that are expensive to build once per schema file and are shared
+/// by every document mapped to it: the schema text, the parsed [`Schema`],
+/// its JSON Schema validator and the section rule regexes. Built through
+/// [`Compiled::compile`] and required by [`validate`], so validation never
+/// meets an uncompiled pattern (an invalid one fails compilation instead of
+/// silently never matching).
+pub struct Compiled {
+    text: String,
+    schema: Schema,
+    front_matter: Option<jsonschema::Validator>,
+    patterns: HashMap<String, Regex>,
+}
+
+impl Compiled {
+    pub fn compile(text: String, schema: &Schema) -> Result<Self> {
+        let front_matter = (!schema.front_matter.is_null())
+            .then(|| jsonschema::validator_for(&schema.front_matter))
+            .transpose()?;
+        let mut patterns = HashMap::new();
+        compile_patterns(&schema.body, &mut patterns)?;
+        Ok(Self {
+            text,
+            schema: schema.clone(),
+            front_matter,
+            patterns,
+        })
+    }
+    pub fn text(&self) -> &str {
+        &self.text
+    }
+    pub fn schema(&self) -> &Schema {
+        &self.schema
+    }
+    fn pattern(&self, pattern: &str) -> Option<&Regex> {
+        self.patterns.get(pattern)
+    }
+}
+
+fn compile_patterns(body: &Body, patterns: &mut HashMap<String, Regex>) -> Result<()> {
+    for rule in &body.sections {
+        if let Some(p) = &rule.pattern {
+            patterns.insert(p.clone(), Regex::new(p)?);
+        }
+        compile_patterns(&rule.children, patterns)?;
+    }
+    Ok(())
+}
+pub fn validate(doc: &mut Document, schema: &Schema, compiled: &Compiled) -> Result<()> {
     doc.document_type = Some(schema.document_type.clone());
     // The selector belongs to the engine, not to user metadata validation.
     let mut metadata = doc.metadata.clone();
@@ -199,7 +247,9 @@ pub fn validate(doc: &mut Document, schema: &Schema) -> Result<()> {
         object.remove("$schema");
     }
     if !schema.front_matter.is_null() {
-        let validator = jsonschema::validator_for(&schema.front_matter)?;
+        let Some(validator) = &compiled.front_matter else {
+            bail!("Schema front matter was not compiled for this schema");
+        };
         for error in validator.iter_errors(&metadata) {
             doc.diagnostic(doc.metadata_span(), "schema.frontMatter", error.to_string());
         }
@@ -216,7 +266,7 @@ pub fn validate(doc: &mut Document, schema: &Schema) -> Result<()> {
             );
         }
     }
-    validate_body(doc, &schema.body, None);
+    validate_body(doc, &schema.body, None, compiled);
     if schema.lint.no_skipped_headings {
         let mut previous = 0;
         for section in doc.sections.clone() {
@@ -253,7 +303,7 @@ pub fn validate(doc: &mut Document, schema: &Schema) -> Result<()> {
     Ok(())
 }
 
-fn validate_body(doc: &mut Document, body: &Body, parent: Option<usize>) {
+fn validate_body(doc: &mut Document, body: &Body, parent: Option<usize>, compiled: &Compiled) {
     let children: Vec<usize> = doc
         .sections
         .iter()
@@ -289,7 +339,8 @@ fn validate_body(doc: &mut Document, body: &Body, parent: Option<usize>) {
                 r.title.as_ref().is_some_and(|t| *t == section.heading)
                     || r.pattern
                         .as_ref()
-                        .is_some_and(|p| Regex::new(p).is_ok_and(|r| r.is_match(&section.heading)))
+                        .and_then(|p| compiled.pattern(p))
+                        .is_some_and(|re| re.is_match(&section.heading))
                     || r.title_equals.as_ref().is_some_and(|p| {
                         field(&doc.metadata, p).and_then(Value::as_str)
                             == Some(section.heading.as_str())
@@ -370,7 +421,7 @@ fn validate_body(doc: &mut Document, body: &Body, parent: Option<usize>) {
                 );
             }
         }
-        validate_body(doc, &rule.children, Some(index));
+        validate_body(doc, &rule.children, Some(index), compiled);
     }
     for (rule, count) in body.sections.iter().zip(counts) {
         if count < rule.min || count > rule.max {

@@ -9,6 +9,7 @@ use globset::Glob;
 use percent_encoding::percent_decode_str;
 use serde_json::Value;
 use std::{
+    collections::{HashMap, hash_map::Entry},
     fs,
     path::{Component, Path, PathBuf},
 };
@@ -84,6 +85,10 @@ impl Workspace {
         fingerprint.update(env!("CARGO_PKG_VERSION").as_bytes());
         fingerprint.update(config_text.as_bytes());
         policies.fingerprint(&mut fingerprint);
+        // One compiled artifact per canonical schema path, shared by every
+        // document mapped to the same file: schema compilation cost is paid
+        // once per file instead of once per document.
+        let mut compiled_schemas: HashMap<PathBuf, schema::Compiled> = HashMap::new();
         for (path, absolute) in paths {
             let text = fs::read_to_string(&absolute)
                 .with_context(|| format!("Cannot read {}", absolute.display()))?;
@@ -103,20 +108,29 @@ impl Workspace {
                     )),
                 }
             };
-            let resolved: Result<Schema> = (|| {
+            let resolved: Result<()> = (|| {
                 let schema_path = within(&root, &selected?)?;
-                let text = fs::read_to_string(&schema_path)
-                    .with_context(|| format!("Cannot read {}", schema_path.display()))?;
-                fingerprint.update(text.as_bytes());
-                let schema: Schema = serde_saphyr::from_str(&text)?;
-                schema.check_definition()?;
-                Ok(schema)
+                let compiled = match compiled_schemas.entry(schema_path) {
+                    Entry::Occupied(entry) => {
+                        fingerprint.update(entry.get().text().as_bytes());
+                        entry.into_mut()
+                    }
+                    Entry::Vacant(vacant) => {
+                        let path = vacant.key().clone();
+                        let text = fs::read_to_string(&path)
+                            .with_context(|| format!("Cannot read {}", path.display()))?;
+                        fingerprint.update(text.as_bytes());
+                        let schema: Schema = serde_saphyr::from_str(&text)?;
+                        schema.check_definition()?;
+                        vacant.insert(schema::Compiled::compile(text, &schema)?)
+                    }
+                };
+                schema::validate(&mut doc, compiled.schema(), compiled)?;
+                schemas.push(Some(compiled.schema().clone()));
+                Ok(())
             })();
             match resolved {
-                Ok(schema) => {
-                    schema::validate(&mut doc, &schema)?;
-                    schemas.push(Some(schema));
-                }
+                Ok(()) => {}
                 Err(error) => {
                     doc.diagnostic(doc.metadata_span(), "schema.resolve", format!("{error:#}"));
                     schemas.push(None);
