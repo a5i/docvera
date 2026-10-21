@@ -2,7 +2,7 @@ use md_engine::{
     Workspace,
     index::{self, SearchOptions},
     parser,
-    schema::Schema,
+    schema::{Compiled, Schema},
 };
 use serde_json::{Value, json};
 use std::{fs, path::Path};
@@ -568,4 +568,20 @@ fn corrupt_index_span_fails_closed_instead_of_panicking() {
         format!("{error:#}").contains("rebuild"),
         "expected rebuild hint, got: {error:#}"
     );
+}
+
+#[test]
+fn raw_schema_with_invalid_pattern_cannot_validate_silently() {
+    // A Schema assembled outside YAML parsing can carry an invalid pattern.
+    // Both the definition check and the compilation gate refuse it, and
+    // validate() takes the Compiled artifact, so there is no code path that
+    // matches headings against an uncompiled (silently skipped) pattern.
+    let schema: Schema = serde_json::from_value(json!({
+        "schemaVersion": 1,
+        "documentType": "doc",
+        "body": { "sections": [{ "pattern": "[", "max": 1 }] }
+    }))
+    .unwrap();
+    assert!(schema.check_definition().is_err());
+    assert!(Compiled::compile(String::new(), &schema).is_err());
 }
