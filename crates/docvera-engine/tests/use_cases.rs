@@ -5,7 +5,7 @@ mod support;
 use docvera_engine::{Workspace, index};
 use serde_json::{Value, json};
 use std::{fs, path::Path};
-use support::{SCENARIOS, edit, fixture, reports};
+use support::{SCENARIOS, edit, fixture, reports, text::line_endings_like};
 
 fn check(root: &Path) -> docvera_engine::model::CheckResult {
     Workspace::load(root).unwrap().check()
@@ -146,8 +146,11 @@ fn every_scenario_rejects_missing_owner_missing_section_duplicate_id_and_wrong_t
             _ => "epic",
         };
         let duplicate = original.replacen(
-            "---\n",
-            &format!("---\n$schema: ../schemas/{schema}.yaml\n"),
+            &line_endings_like(&original, "---\n"),
+            &line_endings_like(
+                &original,
+                &format!("---\n$schema: ../schemas/{schema}.yaml\n"),
+            ),
             1,
         );
         fs::write(dir.path().join("docs/duplicate.md"), duplicate).unwrap();

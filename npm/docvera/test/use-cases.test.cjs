@@ -5,6 +5,7 @@ const { tmpdir } = require('node:os');
 const { join, resolve, basename } = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { openWorkspace } = require('..');
+const { replaceFixtureText } = require('./support/fixture-text.cjs');
 const repo = resolve(__dirname, '../../..');
 const bin = process.env.DOCVERA_BIN || join(repo, 'target/debug', process.platform === 'win32' ? 'docvera.exe' : 'docvera');
 function cli(root, args, code = 0) {
@@ -46,8 +47,7 @@ for (const [name, count, file, from, to] of [
       await compareReports();
       const path = join(root, 'docs', file);
       const original = readFileSync(path, 'utf8');
-      assert.ok(original.includes(from));
-      writeFileSync(path, original.replace(from, to));
+      writeFileSync(path, replaceFixtureText(original, from, to));
       assert.deepEqual((await engine.check()).diagnostics, []);
       await engine.index();
       await compareReports();
@@ -65,7 +65,7 @@ for (const [name, count, file, from, to] of [
         }
       }
       if (name === 'design-invariants') {
-        writeFileSync(path, original.replace('states: [loading, success]', 'states: [success]'));
+        writeFileSync(path, replaceFixtureText(original, 'states: [loading, success]', 'states: [success]'));
         const violation = await engine.check();
         assert.deepEqual(violation, cli(root, ['check'], 1));
         assert.ok(violation.diagnostics.some(d => d.rule.startsWith('shacl.') && d.message.includes('async-pattern-declares-progress-state')));
@@ -76,7 +76,9 @@ for (const [name, count, file, from, to] of [
         assert.match(cli(root, ['check'], 2).error.message, /SHACL/);
         writeFileSync(policyPath, policy);
       }
-      writeFileSync(path, original.replace(/^owner: .+\n/m, ''));
+      const ownerLine = original.match(/^owner: [^\r\n]+\r?\n/m);
+      assert.ok(ownerLine, 'Missing owner metadata in fixture');
+      writeFileSync(path, replaceFixtureText(original, ownerLine[0], ''));
       const invalid = await engine.check();
       assert.ok(invalid.diagnostics.length > 0);
       assert.deepEqual(invalid, cli(root, ['check'], 1));

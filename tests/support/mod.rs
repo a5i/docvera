@@ -1,6 +1,9 @@
 use std::{fs, path::Path};
 use tempfile::TempDir;
 
+pub mod text;
+pub use text::edit;
+
 pub const SCENARIOS: &[(&str, usize)] = &[
     ("product-traceability", 6),
     ("qa-traceability", 6),
@@ -34,13 +37,6 @@ fn copy_tree(source: &Path, target: &Path) {
             fs::copy(entry.path(), destination).unwrap();
         }
     }
-}
-
-pub fn edit(root: &Path, file: &str, from: &str, to: &str) {
-    let path = root.join(file);
-    let source = fs::read_to_string(&path).unwrap();
-    assert!(source.contains(from), "Missing {from:?} in {file}");
-    fs::write(path, source.replace(from, to)).unwrap();
 }
 
 pub fn reports(root: &Path) -> Vec<std::path::PathBuf> {

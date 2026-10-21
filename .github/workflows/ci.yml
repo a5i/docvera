@@ -1,6 +1,8 @@
 name: Cross-platform prototype
 on:
   push:
+    branches:
+      - "**"
   pull_request:
   workflow_dispatch:
 permissions:

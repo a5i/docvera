@@ -1,10 +1,13 @@
 #![cfg(feature = "index")]
+#[path = "../../../tests/support/text.rs"]
+mod fixture_text;
 use docvera_engine::{
     Workspace,
     index::{self, SearchOptions},
     parser,
     schema::{Compiled, Schema},
 };
+use fixture_text::edit;
 use serde_json::{Value, json};
 use std::{fs, path::Path};
 use tempfile::TempDir;
@@ -13,12 +16,6 @@ fn fixture() -> TempDir {
     let dir = tempfile::tempdir().unwrap();
     docvera_engine::init(dir.path()).unwrap();
     dir
-}
-fn edit(root: &Path, file: &str, from: &str, to: &str) {
-    let path = root.join(file);
-    let text = fs::read_to_string(&path).unwrap();
-    assert!(text.contains(from), "Missing edit fragment {from}");
-    fs::write(path, text.replace(from, to)).unwrap();
 }
 fn rules(root: &Path) -> Vec<String> {
     Workspace::load(root)
