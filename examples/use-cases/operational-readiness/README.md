@@ -5,17 +5,17 @@ Its production status conditionally requires an `oncall` metadata field through
 standard JSON Schema. Required operational documents are checked by SQL reports,
 not conditional relation validation.
 
-From the repository root after building `mdx`:
+From the repository root after building `docvera`:
 
 ```sh
 root=examples/use-cases/operational-readiness
-target/debug/mdx --root "$root" check
-target/debug/mdx --root "$root" index
+target/debug/docvera --root "$root" check
+target/debug/docvera --root "$root" index
 for report in missing-operational-docs missing-slos overdue-reviews; do
-  target/debug/mdx --root "$root" query sql "$(cat "$root/queries/$report.sql")" --format json
+  target/debug/docvera --root "$root" query sql "$(cat "$root/queries/$report.sql")" --format json
 done
-target/debug/mdx --root "$root" search "database connection timeout" --type runbook --section Diagnosis --format json
-target/debug/mdx --root "$root" extract 'docs/runbook.md#diagnosis' --format json
+target/debug/docvera --root "$root" search "database connection timeout" --type runbook --section Diagnosis --format json
+target/debug/docvera --root "$root" extract 'docs/runbook.md#diagnosis' --format json
 ```
 
 Expected: 4 documents, no diagnostics; all reports have `rows: []`.

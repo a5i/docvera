@@ -28,11 +28,13 @@ rustc-ice-*.txt
 .codex
 
 # Markdown Knowledge Engine derived state / local builds
+**/.docvera/
+# Keep pre-rename derived indexes out of Git; docvera does not read them.
 **/.mdx/
 /demo/
-/npm/mdx/*.node
-/npm/mdx/*.tgz
-/npm/mdx/LICENSE
+/npm/docvera/*.node
+/npm/docvera/*.tgz
+/npm/docvera/LICENSE
 
 # Node dependencies and logs
 node_modules/

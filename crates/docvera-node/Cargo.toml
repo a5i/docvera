@@ -1,0 +1,21 @@
+[package]
+name = "docvera-node"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+test = false
+doctest = false
+
+[dependencies]
+docvera-engine.workspace = true
+anyhow.workspace = true
+serde_json.workspace = true
+napi = { version = "3", features = ["tokio_rt", "serde-json"] }
+napi-derive = "3"
+tokio = { version = "1", features = ["rt"] }
+
+[build-dependencies]
+napi-build = "2"

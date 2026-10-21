@@ -4,14 +4,14 @@
 a completed Jira epic snapshot and an approved Confluence specification snapshot.
 All files are local fixtures. No credentials, network, adapters or synchronization are used.
 
-From the repository root after building `mdx`:
+From the repository root after building `docvera`:
 
 ```sh
 root=examples/use-cases/project-governance
-target/debug/mdx --root "$root" check
-target/debug/mdx --root "$root" index
-target/debug/mdx --root "$root" query sql "$(cat "$root/queries/documentation-drift.sql")" --format json
-target/debug/mdx --root "$root" query sql "$(cat "$root/queries/incomplete-milestones.sql")" --format json
+target/debug/docvera --root "$root" check
+target/debug/docvera --root "$root" index
+target/debug/docvera --root "$root" query sql "$(cat "$root/queries/documentation-drift.sql")" --format json
+target/debug/docvera --root "$root" query sql "$(cat "$root/queries/incomplete-milestones.sql")" --format json
 ```
 
 Expected: 4 documents, no diagnostics; both reports have `rows: []`.

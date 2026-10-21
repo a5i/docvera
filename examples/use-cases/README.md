@@ -3,7 +3,7 @@
 These six offline workspaces translate representative rules from
 [`demo/cases.md`](../../demo/cases.md) into today's schema validation, SHACL policies and SQLite reports.
 They are examples **and** shared integration-test fixtures, not six new engine features.
-The small [`mdx init` starter](../workspace) uses `mdx.toml`; document schemas remain YAML.
+The small [`docvera init` starter](../workspace) uses `docvera.toml`; document schemas remain YAML.
 
 | Role | Workspace | Documents | Reports |
 |---|---|---:|---|
@@ -19,16 +19,16 @@ The small [`mdx init` starter](../workspace) uses `mdx.toml`; document schemas r
 Build once from the repository root:
 
 ```sh
-cargo build --locked -p md-cli
+cargo build --locked -p docvera-cli
 ```
 
 Then, for example (POSIX shell; Windows users can pass the SQL string directly):
 
 ```sh
 root=examples/use-cases/qa-traceability
-target/debug/mdx --root "$root" check
-target/debug/mdx --root "$root" index
-target/debug/mdx --root "$root" query sql "$(cat "$root/queries/coverage.sql")" --format json
+target/debug/docvera --root "$root" check
+target/debug/docvera --root "$root" index
+target/debug/docvera --root "$root" query sql "$(cat "$root/queries/coverage.sql")" --format json
 ```
 
 All workspaces pass `check` with zero diagnostics. All baseline policy reports return
@@ -62,13 +62,13 @@ aggregation and external snapshot TTL checks remain follow-up examples.
 
 Rust engine and CLI tests copy these directories into temporary workspaces using
 `tests/support/mod.rs`; native Node tests copy the same tracked files. Developer
-`.mdx` indexes are excluded. Tests cover all SQL files, exact baseline rows,
+`.docvera` indexes are excluded. Tests cover all SQL files, exact baseline rows,
 positive violation cases, schema errors, edits/deletions, indexed-snapshot semantics,
 search/extraction, graph traversal and CLI/native parity.
 
 ```sh
 cargo test --locked --workspace
-cargo build --locked -p md-cli
-npm --prefix npm/mdx run build
-npm --prefix npm/mdx test
+cargo build --locked -p docvera-cli
+npm --prefix npm/docvera run build
+npm --prefix npm/docvera test
 ```

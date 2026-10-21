@@ -1,6 +1,6 @@
-name: md-schema
+name: docvera
 version: 1.0.0
-description: APM project for md-schema
+description: APM project for docvera
 author: Alexey Pavlyukov
 # Which agent platforms to deploy to (uncomment to pin):
 # targets:

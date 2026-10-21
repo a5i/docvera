@@ -170,15 +170,15 @@ Index at least each logical section, plus document title and selected metadata. 
 ## 3.4 Illustrative CLI
 
 ```bash
-mdx check --format json
+docvera check --format json
 
-mdx index --rebuild
+docvera index --rebuild
 
-mdx query sql "SELECT declared_id, metadata->>'status' FROM documents" --format json
+docvera query sql "SELECT declared_id, metadata->>'status' FROM documents" --format json
 
-mdx graph incoming ADR-0001 --depth 2 --format json
+docvera graph incoming ADR-0001 --depth 2 --format json
 
-mdx search "OAuth" --type adr --section Security --format json
+docvera search "OAuth" --type adr --section Security --format json
 ```
 
 ## 3.5 Example JSON search response
@@ -227,12 +227,12 @@ Verify DuckDB FTS capabilities and incremental updates against exact engine/exte
 
 ## 4.1 Node.js integration: native library, not a CLI wrapper
 
-Publish a scoped npm package (placeholder: @example/mdx) with a thin TypeScript facade calling the shared Rust md-engine through napi-rs and Node-API. Platform-native prebuilt packages cover supported Windows, Linux and macOS combinations (verify x64/arm64 coverage in CI). Rust is not required on consumer machines with supported prebuilds. Do not make child_process CLI invocation the default binding mechanism.
+Publish a scoped npm package (placeholder: @example/docvera) with a thin TypeScript facade calling the shared Rust docvera-engine through napi-rs and Node-API. Platform-native prebuilt packages cover supported Windows, Linux and macOS combinations (verify x64/arm64 coverage in CI). Rust is not required on consumer machines with supported prebuilds. Do not make child_process CLI invocation the default binding mechanism.
 
 ## 4.2 Proposed TypeScript API
 
 ```typescript
-import { openWorkspace } from '@example/mdx';
+import { openWorkspace } from '@example/docvera';
 
 
 
@@ -262,15 +262,15 @@ This is a proposed API, not implemented code. CPU-intensive and I/O-heavy operat
 ```text
 crates/
 
-md-model/ md-parser/ md-schema/ md-validator/
+docvera-model/ docvera-parser/ docvera-schema/ docvera-validator/
 
-md-references/ md-index/ md-query/ md-search/
+docvera-references/ docvera-index/ docvera-query/ docvera-search/
 
-md-engine/ md-cli/ md-node/
+docvera-engine/ docvera-cli/ docvera-node/
 
 npm/
 
-mdx/ # JS loader, declarations, package metadata
+docvera/ # JS loader, declarations, package metadata
 ```
 
 ## 4.4 PoC stages and acceptance criteria

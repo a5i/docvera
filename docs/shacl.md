@@ -4,7 +4,7 @@ Cross-document policies are standard SHACL Turtle, not a custom YAML rule langua
 
 ## Configuration
 
-`mdx.toml` is the single workspace config:
+`docvera.toml` is the single workspace config:
 
 ```toml
 version = 1
@@ -24,7 +24,7 @@ shapes = ["policies/relations.ttl", "policies/lifecycle.ttl"]
 - Files are parsed separately and merged into one shapes graph in sorted path order. Prefix declarations and blank-node labels are file-local. There is **no override/precedence semantics**: named shapes combine their RDF statements.
 - Shapes need absolute IRIs or explicit Turtle `@base`; the filesystem location is not an implicit RDF base.
 - Invalid Turtle, shape compilation errors, an entirely targetless shapes graph, unsupported SHACL predicates, or validator failures are operation errors. There is no silent fallback to SQL or another evaluator.
-- Legacy `mdx.yaml` supports the equivalent nested configuration during migration. Having both configs is an error. Document schemas remain YAML/JSON; front matter supports YAML/TOML.
+- Legacy `docvera.yaml` supports the equivalent nested configuration during migration. Having both configs is an error. Document schemas remain YAML/JSON; front matter supports YAML/TOML.
 
 ## Example Core policy
 
@@ -42,9 +42,9 @@ relations:
 
 ```turtle
 @prefix sh: <http://www.w3.org/ns/shacl#> .
-@prefix type: <urn:mdx:v1:type:> .
-@prefix f: <urn:mdx:v1:field:> .
-@prefix policy: <urn:mdx:policy:> .
+@prefix type: <urn:docvera:v1:type:> .
+@prefix f: <urn:docvera:v1:field:> .
+@prefix policy: <urn:docvera:policy:> .
 
 policy:Feature a sh:NodeShape ;
     sh:targetClass type:feature ;
@@ -61,8 +61,8 @@ policy:FeatureEpic a sh:PropertyShape ;
 Use the schema's actual `documentType`, exactly and case-sensitively. `type:epic` is not `type:jira-epic` or `type:Epic`.
 
 ```sh
-mdx --root . check
-mdx --root . --format json check
+docvera --root . check
+docvera --root . --format json check
 ```
 
 ## RDF projection v1
@@ -71,15 +71,15 @@ Namespaces use URNs so the vocabulary does not imply ownership of a public HTTP 
 
 | Concept | IRI / representation |
 |---|---|
-| Document with ID `FEAT-1` | `urn:mdx:document:id:FEAT-1` |
-| Document without ID | `urn:mdx:document:path:` + encoded relative path |
-| `documentType: feature` in schema | `rdf:type <urn:mdx:v1:type:feature>` |
-| `status: planned` in front matter | `<urn:mdx:v1:field:status> "planned"` |
-| Resolved `frontMatter.epic` relation | `<urn:mdx:v1:field:epic> <target-document-IRI>` |
-| Nested metadata `review.owner` | `<urn:mdx:v1:field:review.owner>` |
-| Relative Markdown path | `<urn:mdx:v1:path>` string |
-| Raw Markdown body | `<urn:mdx:v1:body>` string |
-| Resolved body link to a document | `<urn:mdx:v1:link> <target-document-IRI>` |
+| Document with ID `FEAT-1` | `urn:docvera:document:id:FEAT-1` |
+| Document without ID | `urn:docvera:document:path:` + encoded relative path |
+| `documentType: feature` in schema | `rdf:type <urn:docvera:v1:type:feature>` |
+| `status: planned` in front matter | `<urn:docvera:v1:field:status> "planned"` |
+| Resolved `frontMatter.epic` relation | `<urn:docvera:v1:field:epic> <target-document-IRI>` |
+| Nested metadata `review.owner` | `<urn:docvera:v1:field:review.owner>` |
+| Relative Markdown path | `<urn:docvera:v1:path>` string |
+| Raw Markdown body | `<urn:docvera:v1:body>` string |
+| Resolved body link to a document | `<urn:docvera:v1:link> <target-document-IRI>` |
 
 ID/type/property segments use UTF-8 percent encoding, preserving ASCII letters, digits, `-` and `_`. Nested object segments are joined with `.`; a literal dot within a key is encoded as `%2E`, so it cannot collide with nesting. IDs remain stable across file moves; path-based identities do not. Cross-workspace references are unsupported.
 
@@ -98,15 +98,15 @@ For a draft Epic whose Features must all be draft:
 
 ```turtle
 @prefix sh: <http://www.w3.org/ns/shacl#> .
-@prefix type: <urn:mdx:v1:type:> .
+@prefix type: <urn:docvera:v1:type:> .
 
-<urn:mdx:policy:DraftEpic> a sh:NodeShape ;
+<urn:docvera:policy:DraftEpic> a sh:NodeShape ;
     sh:targetClass type:epic ;
     sh:sparql [
         sh:message "Draft Epic has a non-draft Feature" ;
         sh:select """
-            PREFIX f: <urn:mdx:v1:field:>
-            PREFIX type: <urn:mdx:v1:type:>
+            PREFIX f: <urn:docvera:v1:field:>
+            PREFIX type: <urn:docvera:v1:type:>
             SELECT $this WHERE {
                 $this f:status "draft" .
                 ?feature a type:feature ; f:epic $this .
@@ -124,7 +124,7 @@ See the executable [design-invariants workspace](../examples/use-cases/design-in
 
 - Core/SPARQL results map to `shacl.<ConstraintComponent>`, e.g. `shacl.MinCountConstraintComponent`. These component codes do not depend on generated blank-node labels.
 - Every evaluated violation additionally carries a structured `shacl` object on the diagnostic: `focusNode`, `constraintComponent` (full IRI), `resultSeverity`, optional `sourceShape`/`resultPath`/`value`, `messages` (all languages), and `sourceField` — an RFC 6901 JSON pointer into that document's front matter when an exact location is known. RDF terms are adapter-owned `{kind: iri|blankNode|literal, …}` shapes; blank-node labels are never exposed. This is additive: `shacl` is absent on local/operational diagnostics, and older JSON consumers can ignore it.
-- Source mapping uses YAML/TOML parser locations, not string search. Direct `urn:mdx:v1:field:…` predicate paths map to the exact UTF-8 byte span of the value (array items map to the specific offending item). Collections highlight the key token rather than claiming a fabricated range; YAML aliases keep their use-site token and never expose child locations of a remote definition. Body paths map to the body range; `urn:mdx:v1:link` maps to the matching Markdown link span when unambiguous. Complex property paths, SPARQL results, missing fields and anything ambiguous fall back to the whole front matter with `sourceField` unset — no invented precision.
+- Source mapping uses YAML/TOML parser locations, not string search. Direct `urn:docvera:v1:field:…` predicate paths map to the exact UTF-8 byte span of the value (array items map to the specific offending item). Collections highlight the key token rather than claiming a fabricated range; YAML aliases keep their use-site token and never expose child locations of a remote definition. Body paths map to the body range; `urn:docvera:v1:link` maps to the matching Markdown link span when unambiguous. Complex property paths, SPARQL results, missing fields and anything ambiguous fall back to the whole front matter with `sourceField` unset — no invented precision.
 - Messages include policy messages, named source shapes, result paths and optional values. Name shapes when stable policy identification matters. Fields are currently carried in the existing diagnostic message, not a separate structured SHACL report contract.
 - The focus document maps back to its Markdown path. A focus node that cannot be mapped to a document is an operation error, never a discarded violation.
 - `sh:Violation` → `error`, `sh:Warning` → `warning`, `sh:Info` → `info`. Other severities conservatively map to `error`.

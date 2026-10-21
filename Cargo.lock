@@ -1443,18 +1443,18 @@ dependencies = [
 ]
 
 [[package]]
-name = "md-cli"
+name = "docvera-cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "md-engine",
+ "docvera-engine",
  "serde_json",
  "tempfile",
 ]
 
 [[package]]
-name = "md-engine"
+name = "docvera-engine"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -1478,11 +1478,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "md-node"
+name = "docvera-node"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "md-engine",
+ "docvera-engine",
  "napi",
  "napi-build",
  "napi-derive",

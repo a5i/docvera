@@ -4,14 +4,14 @@
 also points to the local Jira snapshot `PROD-101`. Requirements are independently
 identified documents rather than headings. The draft feature intentionally has no epic.
 
-From the repository root after building `mdx`:
+From the repository root after building `docvera`:
 
 ```sh
 root=examples/use-cases/product-traceability
-target/debug/mdx --root "$root" check
-target/debug/mdx --root "$root" index
-target/debug/mdx --root "$root" query sql "$(cat "$root/queries/missing-epics.sql")" --format json
-target/debug/mdx --root "$root" query sql "$(cat "$root/queries/orphan-requirements.sql")" --format json
+target/debug/docvera --root "$root" check
+target/debug/docvera --root "$root" index
+target/debug/docvera --root "$root" query sql "$(cat "$root/queries/missing-epics.sql")" --format json
+target/debug/docvera --root "$root" query sql "$(cat "$root/queries/orphan-requirements.sql")" --format json
 ```
 
 Expected: 6 documents, no diagnostics, both reports have `rows: []`.

@@ -24,7 +24,7 @@ fn copy_tree(source: &Path, target: &Path) {
     for entry in fs::read_dir(source).unwrap() {
         let entry = entry.unwrap();
         // Never copy a developer's derived index into a test fixture.
-        if entry.file_name() == ".mdx" {
+        if entry.file_name() == ".docvera" {
             continue;
         }
         let destination = target.join(entry.file_name());

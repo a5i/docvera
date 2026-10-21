@@ -1,11 +1,11 @@
 # Embedded checker and unsaved buffers
 
-The Rust checker can run without SQLite, FTS or RDF. CLI `mdx check` and the existing Node `openWorkspace().check()` still load current files on every call. Editor integrations should use the explicit reusable context below instead.
+The Rust checker can run without SQLite, FTS or RDF. CLI `docvera check` and the existing Node `openWorkspace().check()` still load current files on every call. Editor integrations should use the explicit reusable context below instead.
 
 ## Rust API
 
 ```rust,no_run
-use md_engine::CheckerContext;
+use docvera_engine::CheckerContext;
 use std::path::Path;
 
 let mut checker = CheckerContext::load(Path::new("./workspace"))?;
@@ -33,7 +33,7 @@ let result = checker.check()?;
 
 ## Construction without a filesystem
 
-Use `CheckerContext::from_sources(config, sources)` for a host-managed workspace, including WebAssembly. `config` is `md_engine::config::Config` (serde-deserializable); `sources` is `WorkspaceSources`:
+Use `CheckerContext::from_sources(config, sources)` for a host-managed workspace, including WebAssembly. `config` is `docvera_engine::config::Config` (serde-deserializable); `sources` is `WorkspaceSources`:
 
 | Field | Value |
 |---|---|
@@ -47,7 +47,7 @@ Schema and document keys normalize to workspace-relative paths; supply one entry
 ## Node API
 
 ```js
-const { openChecker } = require('./npm/mdx');
+const { openChecker } = require('./npm/docvera');
 const checker = await openChecker({ root: './workspace' });
 try {
   const result = await checker.checkDocument('docs/note.md', unsavedText);
@@ -66,7 +66,7 @@ Results use the existing `CheckResult` contract. Offsets are zero-based **UTF-8 
 
 ## Build features and WASM
 
-`md-engine` keeps full functionality by default:
+`docvera-engine` keeps full functionality by default:
 
 | Features | Capabilities |
 |---|---|
@@ -75,17 +75,17 @@ Results use the existing `CheckResult` contract. Offsets are zero-based **UTF-8 
 | `--no-default-features --features index` | Add SQLite/FTS and retrieval, without SHACL |
 | `--no-default-features --features shacl` | Add in-memory RDF policies, without SQLite |
 
-A checker without the `shacl` feature **fails closed** if `[validation.shacl]` is configured; it never silently skips requested policies. `md-cli` and `md-node` currently use the default full engine.
+A checker without the `shacl` feature **fails closed** if `[validation.shacl]` is configured; it never silently skips requested policies. `docvera-cli` and `docvera-node` currently use the default full engine.
 
 ```sh
-cargo test --locked -p md-engine --no-default-features
-cargo test --locked -p md-engine --no-default-features --features index
-cargo test --locked -p md-engine --no-default-features --features shacl
+cargo test --locked -p docvera-engine --no-default-features
+cargo test --locked -p docvera-engine --no-default-features --features index
+cargo test --locked -p docvera-engine --no-default-features --features shacl
 rustup target add wasm32-unknown-unknown
-cargo build --locked -p md-engine --no-default-features --target wasm32-unknown-unknown
+cargo build --locked -p docvera-engine --no-default-features --target wasm32-unknown-unknown
 ```
 
-The final command verifies compilation/code generation of the Rust checker core for WASM. Use `from_sources`, not filesystem loading, in a browser host. This is **not yet a packaged browser JavaScript binding or a browser runtime test**, and does not claim WASM support for the optional index/RDF stacks. Their absence from the checker dependency graph can be inspected with `cargo tree -p md-engine --no-default-features --edges normal`.
+The final command verifies compilation/code generation of the Rust checker core for WASM. Use `from_sources`, not filesystem loading, in a browser host. This is **not yet a packaged browser JavaScript binding or a browser runtime test**, and does not claim WASM support for the optional index/RDF stacks. Their absence from the checker dependency graph can be inspected with `cargo tree -p docvera-engine --no-default-features --edges normal`.
 
 ## Parsing and untyped files
 

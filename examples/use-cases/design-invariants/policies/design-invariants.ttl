@@ -1,13 +1,13 @@
 @prefix sh: <http://www.w3.org/ns/shacl#> .
-@prefix type: <urn:mdx:v1:type:> .
-@prefix policy: <urn:mdx:policy:design:> .
+@prefix type: <urn:docvera:v1:type:> .
+@prefix policy: <urn:docvera:policy:design:> .
 
 policy:failure-capable-pattern-has-failure-scenario
     a sh:NodeShape ; sh:targetClass type:interaction-pattern ;
     sh:sparql [
         sh:message "Failure-capable pattern without a failure scenario" ;
         sh:select """
-            PREFIX f: <urn:mdx:v1:field:>
+            PREFIX f: <urn:docvera:v1:field:>
             SELECT $this WHERE {
                 FILTER (EXISTS { $this f:capabilities ?c . FILTER (?c IN ("network", "mutation", "destructive")) }
                         || EXISTS { $this f:failures ?failure })
@@ -21,7 +21,7 @@ policy:async-pattern-declares-progress-state
     sh:sparql [
         sh:message "Async pattern lacks a progress and a success state" ;
         sh:select """
-            PREFIX f: <urn:mdx:v1:field:>
+            PREFIX f: <urn:docvera:v1:field:>
             SELECT DISTINCT $this WHERE {
                 $this f:capabilities ?c . FILTER (?c IN ("network", "mutation"))
                 FILTER (!EXISTS { $this f:states ?s . FILTER (?s IN ("loading", "processing")) }
@@ -35,8 +35,8 @@ policy:stable-pattern-implemented-or-tracked
     sh:sparql [
         sh:message "Stable pattern neither implemented nor tracked by an open finding" ;
         sh:select """
-            PREFIX f: <urn:mdx:v1:field:>
-            PREFIX type: <urn:mdx:v1:type:>
+            PREFIX f: <urn:docvera:v1:field:>
+            PREFIX type: <urn:docvera:v1:type:>
             SELECT $this WHERE {
                 $this f:lifecycle "stable" .
                 FILTER NOT EXISTS { $this f:implementedBy ?implementation }
@@ -50,8 +50,8 @@ policy:stable-principle-governs-a-rule
     sh:sparql [
         sh:message "Stable principle without a governed rule" ;
         sh:select """
-            PREFIX f: <urn:mdx:v1:field:>
-            PREFIX type: <urn:mdx:v1:type:>
+            PREFIX f: <urn:docvera:v1:field:>
+            PREFIX type: <urn:docvera:v1:type:>
             SELECT $this WHERE {
                 $this f:lifecycle ?lifecycle . FILTER (?lifecycle IN ("reviewed", "stable"))
                 FILTER NOT EXISTS { $this f:governs ?rule . ?rule a type:rule }
@@ -64,8 +64,8 @@ policy:stable-rule-governed-by-active-principle
     sh:sparql [
         sh:message "Stable rule without an active governing principle" ;
         sh:select """
-            PREFIX f: <urn:mdx:v1:field:>
-            PREFIX type: <urn:mdx:v1:type:>
+            PREFIX f: <urn:docvera:v1:field:>
+            PREFIX type: <urn:docvera:v1:type:>
             SELECT $this WHERE {
                 $this f:lifecycle "stable" .
                 FILTER NOT EXISTS {
@@ -81,7 +81,7 @@ policy:deprecated-principle-unreferenced
     sh:sparql [
         sh:message "Deprecated principle is still referenced" ;
         sh:select """
-            PREFIX f: <urn:mdx:v1:field:>
+            PREFIX f: <urn:docvera:v1:field:>
             SELECT DISTINCT $this WHERE {
                 $this f:lifecycle "deprecated" . ?rule f:governedBy $this .
             }

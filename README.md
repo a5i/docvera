@@ -1,6 +1,6 @@
-# md-schema / Markdown Knowledge Engine
+# docvera / Markdown Knowledge Engine
 
-A cross-platform **Rust prototype** that turns Git-managed Markdown into a validated, typed, queryable local knowledge base. The same engine powers the `mdx` CLI and a native Node.js addon; Node does not spawn the CLI.
+A cross-platform **Rust prototype** that turns Git-managed Markdown into a validated, typed, queryable local knowledge base. The same engine powers the `docvera` CLI and a native Node.js addon; Node does not spawn the CLI.
 
 **Implemented:** YAML/JSON schemas, section-tree validation, lint warnings, ID uniqueness, typed metadata relations, SHACL Core/SPARQL cross-document policies, Markdown links/anchors, incremental index writes, read-only SQL, graph traversal, section-level BM25 search and original Markdown extraction.
 
@@ -11,30 +11,42 @@ A cross-platform **Rust prototype** that turns Git-managed Markdown into a valid
 Install the CLI into `~/.cargo/bin` (assumed to be on `PATH`):
 
 ```sh
-cargo install --locked --path crates/md-cli
-mdx --version   # mdx 0.1.0
+cargo install --locked --path crates/docvera-cli
+docvera --version   # docvera 0.1.0
 ```
 
-Updating is the same command re-run over the existing installation. A local build without installing works too: `cargo build --locked --release -p md-cli`, then use `target/release/mdx` (Windows: `target\release\mdx.exe`).
+Updating is the same command re-run over the existing installation. A local build without installing works too: `cargo build --locked --release -p docvera-cli`, then use `target/release/docvera` (Windows: `target\release\docvera.exe`).
 
 Requirements: a current stable Rust toolchain and a C/C++ compiler — SQLite is compiled from bundled source (Windows: Visual Studio Build Tools with the C++ workload; macOS: Xcode command-line tools; Linux: GCC/Clang and standard build tools). Crates are downloaded once from the pinned `Cargo.lock`, including the Rudof SHACL engine. The native Node.js addon is **not** published to npm; build it locally as shown in the Node.js API section below.
+
+## Migrating from md-schema / mdx
+
+This is a breaking rename with no old-name aliases. Install the new `docvera` CLI;
+rename workspace `mdx.toml` / `mdx.yaml` to `docvera.toml` / `docvera.yaml`.
+Update scripts to use `docvera`, native parity overrides to `DOCVERA_BIN`, and
+Node imports to `@docvera/engine` (local source package: `npm/docvera`). Rust
+packages are now `docvera-engine`, `docvera-cli`, and `docvera-node`.
+Replace `urn:mdx:` with `urn:docvera:` in SHACL policies and schema identifiers.
+Run `docvera index --rebuild` to create `.docvera/index.sqlite3`; the old `.mdx`
+index is not reused and can be removed. Markdown documents and document schemas
+otherwise keep their existing format.
 
 ## Try the entire cycle
 
 Prerequisites: see [Install from source](#install-from-source). Run the full cycle without installing:
 
 ```sh
-cargo build --locked --release -p md-cli
-cargo run --locked --bin mdx -- --root demo init
-cargo run --locked --bin mdx -- --root demo check
-cargo run --locked --bin mdx -- --root demo index
-cargo run --locked --bin mdx -- --root demo query sql "SELECT declared_id,type FROM documents ORDER BY path" --format json
-cargo run --locked --bin mdx -- --root demo graph incoming FEATURE-0042 --depth 2
-cargo run --locked --bin mdx -- --root demo search OAuth --type feature --section Security
-cargo run --locked --bin mdx -- --root demo extract "docs/feature-0042.md#security"
+cargo build --locked --release -p docvera-cli
+cargo run --locked --bin docvera -- --root demo init
+cargo run --locked --bin docvera -- --root demo check
+cargo run --locked --bin docvera -- --root demo index
+cargo run --locked --bin docvera -- --root demo query sql "SELECT declared_id,type FROM documents ORDER BY path" --format json
+cargo run --locked --bin docvera -- --root demo graph incoming FEATURE-0042 --depth 2
+cargo run --locked --bin docvera -- --root demo search OAuth --type feature --section Security
+cargo run --locked --bin docvera -- --root demo extract "docs/feature-0042.md#security"
 ```
 
-Or run the binary directly: `target/release/mdx` (Windows: `target\release\mdx.exe`). `init` creates a small workspace containing an ADR, a Feature and a Test Plan. It refuses to overwrite existing files. The tracked version is in [`examples/workspace`](examples/workspace).
+Or run the binary directly: `target/release/docvera` (Windows: `target\release\docvera.exe`). `init` creates a small workspace containing an ADR, a Feature and a Test Plan. It refuses to overwrite existing files. The tracked version is in [`examples/workspace`](examples/workspace).
 
 ### Exercise failures and updates
 
@@ -85,11 +97,11 @@ body:
           - title: Usage            # mandatory H2, after Installation
 ```
 
-Map files to schemas in `mdx.toml`, or set `$schema` in a document's front matter. Explicit selectors are relative to the document; mappings are relative to the workspace. The reserved `$schema` selector is removed before metadata validation, so `additionalProperties: false` works normally.
+Map files to schemas in `docvera.toml`, or set `$schema` in a document's front matter. Explicit selectors are relative to the document; mappings are relative to the workspace. The reserved `$schema` selector is removed before metadata validation, so `additionalProperties: false` works normally.
 
 ## Add cross-document policies
 
-Keep configuration in `mdx.toml` and standard SHACL rules in separate Turtle files:
+Keep configuration in `docvera.toml` and standard SHACL rules in separate Turtle files:
 
 ```toml
 [validation.shacl]
@@ -98,18 +110,18 @@ shapes = ["policies/relations.ttl", "policies/lifecycle.ttl"]
 
 `check` builds an in-memory RDF projection from current documents and resolved references, runs pinned Rudof SHACL Native validation (Core plus tested inline SPARQL), and maps violations back to Markdown diagnostics. No persistent RDF store or SQL index is required. See [policy examples, RDF vocabulary and limits](docs/shacl.md) and the runnable [design-invariants workspace](examples/use-cases/design-invariants).
 
-`mdx init` and tracked examples use TOML. Legacy `mdx.yaml` remains a migration fallback; having both configs is an error. Local document schemas remain YAML/JSON. There is no custom `constraints` assertion DSL.
+`docvera init` and tracked examples use TOML. Legacy `docvera.yaml` remains a migration fallback; having both configs is an error. Local document schemas remain YAML/JSON. There is no custom `constraints` assertion DSL.
 
 ## Node.js API
 
 Requires Node.js 22+ and the Rust/C toolchain **for the current local build**. There is no published npm package or automatic prebuilt-platform loader yet.
 
 ```sh
-npm --prefix npm/mdx run build
+npm --prefix npm/docvera run build
 ```
 
 ```js
-const { openWorkspace } = require('./npm/mdx');
+const { openWorkspace } = require('./npm/docvera');
 
 async function main() {
   const engine = await openWorkspace({ root: './demo' });
@@ -134,14 +146,14 @@ For unsaved editor buffers, use `openChecker({ root })` and `checkDocument(path,
 ## CLI contracts
 
 ```sh
-mdx --help
-mdx guide                     # complete offline manual with examples + schema/SHACL references
-mdx schema config > mdx.config.schema.json      # generated from Rust/Serde types
-mdx schema document > mdx.document.schema.json  # envelope/section DSL contract
-mdx schema check-result                        # serialized checker result contract
-mdx guide --format json       # same manual and command contracts for AI agents
-mdx contract --format json
-mdx check --warnings-as-errors --format json
+docvera --help
+docvera guide                     # complete offline manual with examples + schema/SHACL references
+docvera schema config > docvera.config.schema.json      # generated from Rust/Serde types
+docvera schema document > docvera.document.schema.json  # envelope/section DSL contract
+docvera schema check-result                        # serialized checker result contract
+docvera guide --format json       # same manual and command contracts for AI agents
+docvera contract --format json
+docvera check --warnings-as-errors --format json
 ```
 
 - `--root` and `--format` are global and can appear before/after a subcommand.
@@ -158,9 +170,9 @@ mdx check --warnings-as-errors --format json
 cargo fmt --all -- --check
 cargo clippy --locked --workspace --all-targets -- -D warnings
 cargo test --locked --workspace
-cargo build --locked -p md-cli
-npm --prefix npm/mdx run build
-npm --prefix npm/mdx test
+cargo build --locked -p docvera-cli
+npm --prefix npm/docvera run build
+npm --prefix npm/docvera test
 ```
 
 The Rust integration suite covers valid/invalid structure, metadata, duplicate YAML keys, duplicate IDs, typed relations, anchors, Unicode/CRLF, schema invalidation, updates/deletions, SQL restrictions and graph cycles. Node tests compare CLI/native results across the full lifecycle.

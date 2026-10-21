@@ -4,14 +4,14 @@
 point to both `TC-001` and `REL-001`. The older execution failed, the latest passed.
 Normal-priority `REQ-002` intentionally has no test.
 
-From the repository root after building `mdx`:
+From the repository root after building `docvera`:
 
 ```sh
 root=examples/use-cases/qa-traceability
-target/debug/mdx --root "$root" check
-target/debug/mdx --root "$root" index
-target/debug/mdx --root "$root" query sql "$(cat "$root/queries/coverage.sql")" --format json
-target/debug/mdx --root "$root" query sql "$(cat "$root/queries/uncovered-critical.sql")" --format json
+target/debug/docvera --root "$root" check
+target/debug/docvera --root "$root" index
+target/debug/docvera --root "$root" query sql "$(cat "$root/queries/coverage.sql")" --format json
+target/debug/docvera --root "$root" query sql "$(cat "$root/queries/uncovered-critical.sql")" --format json
 ```
 
 Expected: 6 documents, no diagnostics; uncovered-critical has `rows: []`.

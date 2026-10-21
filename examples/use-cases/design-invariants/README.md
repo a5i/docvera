@@ -7,19 +7,19 @@ success states, deprecated entities must be unreferenced, and stable patterns
 must be implemented or tracked by an open finding.
 
 These snapshot invariants are **standard SHACL-SPARQL policies**, not a custom
-schema assertion language or hand-written Rust validator. `mdx.toml` selects
+schema assertion language or hand-written Rust validator. `docvera.toml` selects
 `policies/design-invariants.ttl`; local YAML schemas validate document structure
 and declare relations for resolution. RDF is derived in memory without an index.
 `PTN-1` satisfies "implemented or tracked" through open finding `FIND-1`;
 `PTN-2` is draft and not checked; `PRIN-3` is deprecated and unreferenced.
 
-From the repository root after building `mdx`:
+From the repository root after building `docvera`:
 
 ```sh
 root=examples/use-cases/design-invariants
-target/debug/mdx --root "$root" check
-target/debug/mdx --root "$root" index
-target/debug/mdx --root "$root" query sql "$(cat "$root/queries/untracked-stable-patterns.sql")" --format json
+target/debug/docvera --root "$root" check
+target/debug/docvera --root "$root" index
+target/debug/docvera --root "$root" query sql "$(cat "$root/queries/untracked-stable-patterns.sql")" --format json
 ```
 
 Expected: 9 documents, no diagnostics; the SQL report returns `rows: []`.
@@ -27,7 +27,7 @@ Expected: 9 documents, no diagnostics; the SQL report returns `rows: []`.
 ## Try changes in a copy
 
 Each change produces a SHACL diagnostic (`check` exits 1). The message identifies
-the named source shape under `urn:mdx:policy:design:`:
+the named source shape under `urn:docvera:policy:design:`:
 
 - Remove `loading` from `PTN-1` states:
   `async-pattern-declares-progress-state`.

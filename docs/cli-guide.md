@@ -1,20 +1,20 @@
-# mdx CLI guide
+# docvera CLI guide
 
-mdx validates Git-managed Markdown and builds a disposable local knowledge index.
+docvera validates Git-managed Markdown and builds a disposable local knowledge index.
 Markdown, configuration, schemas and policies are authoritative; SQLite is derived.
 This guide is embedded in the binary: no workspace, index or network is required.
-The schema and SHACL references follow the CLI guide in `mdx guide` output.
+The schema and SHACL references follow the CLI guide in `docvera guide` output.
 
 ## Discover commands
 
 ```sh
-mdx --help
-mdx check --help
-mdx query sql --help
-mdx guide
-mdx guide --format json
-mdx contract --format json
-mdx --version
+docvera --help
+docvera check --help
+docvera query sql --help
+docvera guide
+docvera guide --format json
+docvera contract --format json
+docvera --version
 ```
 
 `--help` is a short syntax reference. `guide` is the full offline manual with
@@ -27,7 +27,7 @@ for SQL strings. Replace example paths and IDs with your workspace's actual valu
 
 ## Global options and output
 
-Usage: `mdx [--root PATH] [--format human|json|jsonl] COMMAND`.
+Usage: `docvera [--root PATH] [--format human|json|jsonl] COMMAND`.
 Global options may appear before or after a subcommand.
 
 - `--root PATH`: workspace directory; default is the current directory (`.`).
@@ -56,16 +56,16 @@ standard text/streams even when `--format json` is supplied; do not parse them a
 Choose a new directory; `init` never overwrites existing files.
 
 ```sh
-mdx --root demo init
-mdx --root demo check
-mdx --root demo index
-mdx --root demo --format json query sql "SELECT declared_id,type FROM documents ORDER BY path"
-mdx --root demo graph incoming FEATURE-0042 --depth 2
-mdx --root demo search OAuth --type feature --section Security --limit 10
-mdx --root demo extract 'docs/feature-0042.md#security'
+docvera --root demo init
+docvera --root demo check
+docvera --root demo index
+docvera --root demo --format json query sql "SELECT declared_id,type FROM documents ORDER BY path"
+docvera --root demo graph incoming FEATURE-0042 --depth 2
+docvera --root demo search OAuth --type feature --section Security --limit 10
+docvera --root demo extract 'docs/feature-0042.md#security'
 ```
 
-The generated workspace contains `mdx.toml`, three YAML schemas and three Markdown
+The generated workspace contains `docvera.toml`, three YAML schemas and three Markdown
 files (ADR, Feature and Test Plan). Edit a file, run `check`, then run `index`
 explicitly before using SQL, graph, search or extract again. There is no watcher.
 
@@ -73,18 +73,18 @@ explicitly before using SQL, graph, search or extract again. There is no watcher
 
 ### init
 
-Usage: `mdx init`.
+Usage: `docvera init`.
 Creates the runnable three-document workspace at `--root`, including its directory
 if needed. Refuses to overwrite files; it is not an import or migration command.
 Result: `contractVersion`, `created` (workspace-relative paths).
 
 ```sh
-mdx --root new-workspace init --format json
+docvera --root new-workspace init --format json
 ```
 
 ### check
 
-Usage: `mdx check [--warnings-as-errors]`.
+Usage: `docvera check [--warnings-as-errors]`.
 Validates current files: metadata, section structure, lint, identity, relations,
 Markdown links/anchors and configured SHACL policies. Requires configuration but
 no index. Makes no automatic fixes. Use this command as the CI validation gate.
@@ -92,8 +92,8 @@ no index. Makes no automatic fixes. Use this command as the CI validation gate.
 Result: `contractVersion`, `documents` (count), `diagnostics`.
 
 ```sh
-mdx --root demo check
-mdx --root demo check --warnings-as-errors --format json
+docvera --root demo check
+docvera --root demo check --warnings-as-errors --format json
 ```
 
 Diagnostics contain `path`, `span`, `rule`, `severity`, `message`, and optionally
@@ -104,25 +104,25 @@ line/column positions are one-based Unicode scalar positions, not byte columns.
 
 ### index
 
-Usage: `mdx index [--rebuild]`.
-Validates and atomically updates `.mdx/index.sqlite3`. Records invalid documents
+Usage: `docvera index [--rebuild]`.
+Validates and atomically updates `.docvera/index.sqlite3`. Records invalid documents
 and their diagnostics without turning validation findings into exit 1. Changed
 files are refreshed and deleted files removed. Schema/config/policy changes can
 invalidate all documents. `--rebuild` forces all current documents to be written.
 Result: `contractVersion`, `documents`, `updated`, `deleted`, `diagnostics`.
 
 ```sh
-mdx --root demo index --format json
-mdx --root demo index --rebuild
+docvera --root demo index --format json
+docvera --root demo index --rebuild
 ```
 
-The index is disposable; exclude `.mdx/` from Git. Do not treat `index` success as
+The index is disposable; exclude `.docvera/` from Git. Do not treat `index` success as
 proof that the source is valid. Run `check` separately. Avoid concurrent source
 edits/index writers when a consistent source snapshot matters.
 
 ### query sql
 
-Usage: `mdx query sql SQL`.
+Usage: `docvera query sql SQL`.
 Runs read-only SQLite SQL against the last explicitly indexed snapshot.
 Public tables: `documents`, `sections`, `nodes`, `relations`, `diagnostics`.
 Result: `contractVersion`, `rows` (array of row objects).
@@ -143,12 +143,12 @@ Unlike diagnostic objects returned by `check`, SQL diagnostics use `document_id`
 not a `path` column. Join `documents.internal_id` when document metadata is needed.
 
 ```sh
-mdx --root demo query sql "SELECT declared_id,type,path FROM documents ORDER BY path"
-mdx --root demo query sql "SELECT * FROM sections LIMIT 1" --format json
-mdx --root demo query sql "SELECT * FROM nodes LIMIT 1" --format json
-mdx --root demo query sql "SELECT * FROM relations LIMIT 10" --format json
-mdx --root demo query sql "SELECT document_id,rule,severity,message FROM diagnostics ORDER BY document_id,rule"
-mdx --root demo query sql "SELECT document_id,json_extract(shacl,'$.sourceField') AS field FROM diagnostics WHERE shacl IS NOT NULL"
+docvera --root demo query sql "SELECT declared_id,type,path FROM documents ORDER BY path"
+docvera --root demo query sql "SELECT * FROM sections LIMIT 1" --format json
+docvera --root demo query sql "SELECT * FROM nodes LIMIT 1" --format json
+docvera --root demo query sql "SELECT * FROM relations LIMIT 10" --format json
+docvera --root demo query sql "SELECT document_id,rule,severity,message FROM diagnostics ORDER BY document_id,rule"
+docvera --root demo query sql "SELECT document_id,json_extract(shacl,'$.sourceField') AS field FROM diagnostics WHERE shacl IS NOT NULL"
 ```
 
 Inspect row keys with the limited `SELECT *` examples before composing queries
@@ -160,7 +160,7 @@ for adversarial SQL. There is no SQL-file argument: pass SQL as one quoted argum
 
 ### graph
 
-Usage: `mdx graph incoming|outgoing ID [--depth N]`.
+Usage: `docvera graph incoming|outgoing ID [--depth N]`.
 Traverses resolved references in the indexed snapshot. Incoming follows documents
 that reference the target; outgoing follows its references. Default depth: 1;
 allowed range: 0–32. Depth 0 selects only the root. Traversal terminates on cycles;
@@ -169,13 +169,13 @@ IDs must resolve uniquely; use a workspace-relative document path to disambiguat
 Result: `contractVersion`, `root`, `nodes`, `edges`.
 
 ```sh
-mdx --root demo graph incoming FEATURE-0042 --depth 2 --format json
-mdx --root demo graph outgoing docs/test-0001.md --depth 1
+docvera --root demo graph incoming FEATURE-0042 --depth 2 --format json
+docvera --root demo graph outgoing docs/test-0001.md --depth 1
 ```
 
 ### search
 
-Usage: `mdx search TEXT [--type TYPE] [--section SECTION] [--limit N]`.
+Usage: `docvera search TEXT [--type TYPE] [--section SECTION] [--limit N]`.
 Searches indexed sections with BM25 ranking. TEXT is a literal phrase, not an FTS
 query expression. `--type` filters the schema's document type; `--section` filters
 the section heading. Default limit: 20; maximum: 100.
@@ -185,13 +185,13 @@ own direct content, not duplicated descendant text; heading-less files have no
 searchable sections. No semantic/vector search or multilingual stemming is provided.
 
 ```sh
-mdx --root demo search 'OAuth' --format json
-mdx --root demo search 'OAuth' --type feature --section Security --limit 5
+docvera --root demo search 'OAuth' --format json
+docvera --root demo search 'OAuth' --type feature --section Security --limit 5
 ```
 
 ### extract
 
-Usage: `mdx extract SECTION_ID`.
+Usage: `docvera extract SECTION_ID`.
 Returns original Markdown stored in the indexed snapshot, not the current file.
 Use a `sectionId` returned by search or SQL; the shape is `relative/path.md#anchor`.
 Section IDs can change after heading renames or duplicate-heading reordering.
@@ -199,23 +199,23 @@ Result: `contractVersion`, `sectionId`, `path`, `location`, `markdown`.
 Human mode still prints the result object; read `markdown` in JSON mode for content.
 
 ```sh
-mdx --root demo extract 'docs/feature-0042.md#security' --format json
+docvera --root demo extract 'docs/feature-0042.md#security' --format json
 ```
 
 ### schema
 
-Usage: `mdx schema <config|document|check-result|diagnostic|index-result>`.
+Usage: `docvera schema <config|document|check-result|diagnostic|index-result>`.
 
 Prints a standalone JSON Schema 2020-12 generated from the Rust types used by
 Serde. No workspace, configuration, index or network is needed; `--root` is not
 accessed. `document` describes a document-schema envelope, not front-matter data.
 
 ```sh
-mdx schema config > mdx.config.schema.json
-mdx schema document > mdx.document.schema.json
-mdx schema check-result --format json
-mdx schema diagnostic --format jsonl
-mdx schema index-result
+docvera schema config > docvera.config.schema.json
+docvera schema document > docvera.document.schema.json
+docvera schema check-result --format json
+docvera schema diagnostic --format jsonl
+docvera schema index-result
 ```
 
 This command intentionally emits a **bare schema**, without a `contractVersion`
@@ -227,11 +227,11 @@ Input schemas describe Serde deserialization (names, types, defaults, required
 fields and unknown-field rejection). Output schemas describe serialization.
 Config/schema loading still uses Serde plus Rust semantic validation; arbitrary
 regex validity, cross-field constraints and filesystem checks are not inferred
-from Rust code. A structural schema check does not replace `mdx check`.
+from Rust code. A structural schema check does not replace `docvera check`.
 
 ### contract
 
-Usage: `mdx contract`.
+Usage: `docvera contract`.
 Prints the v1 machine-readable command/result descriptor, including `jsonSchemas`
 generated from Rust/Serde types (the same schemas returned by `schema`). No
 workspace or index is needed. `contractVersion` versions result envelopes, not
@@ -240,25 +240,25 @@ semantics remain explicit metadata; this is not a complete OpenAPI definition.
 SQL/graph/search/extract result schemas and TypeScript declarations are not yet generated.
 
 ```sh
-mdx contract --format json
+docvera contract --format json
 ```
 
 ### guide
 
-Usage: `mdx guide`.
+Usage: `docvera guide`.
 Prints this guide followed by the complete embedded schema and SHACL references.
 No workspace or index is needed. JSON/JSONL includes the same Markdown as `guide`
 and the machine-readable descriptor as `contract`.
 
 ```sh
-mdx guide
-mdx guide --format json > mdx-guide.json
-mdx guide --format jsonl
+docvera guide
+docvera guide --format json > docvera-guide.json
+docvera guide --format jsonl
 ```
 
 ## Workflow for an AI agent
 
-1. Read `mdx guide --format json`; use its `contract` for result field discovery.
+1. Read `docvera guide --format json`; use its `contract` for result field discovery.
 2. Select the workspace explicitly with `--root`. Inspect existing configuration
    and schemas; do not run `init` over an existing project.
 3. Run `check --format json` against current files. Inspect diagnostics and exit
@@ -277,11 +277,11 @@ rewrites documents, contacts Jira, or validates external URL availability.
 ## Troubleshooting and boundaries
 
 - Missing workspace configuration: select the correct `--root` or initialize a new
-  workspace. Exactly one of `mdx.toml` and legacy `mdx.yaml` may exist.
+  workspace. Exactly one of `docvera.toml` and legacy `docvera.yaml` may exist.
 - Missing index or stale results: run `index` after editing. `check` reads source;
   retrieval reads the last successful indexed snapshot, including its diagnostics.
 - Corrupt/incompatible index: try `index --rebuild`; if necessary remove the
-  disposable `.mdx` directory and index again. Never delete authoritative source.
+  disposable `.docvera` directory and index again. Never delete authoritative source.
 - Ambiguous ID: fix duplicates or use a document path for graph lookup.
 - Missing section: obtain the current `sectionId` from search/SQL after indexing.
 - Policy loading/compilation failures: exit 2, not a conforming validation result.

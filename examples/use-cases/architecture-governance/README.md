@@ -3,16 +3,16 @@
 `ARCH-001` defines boundaries. Infrastructure `COMP-002` depends on domain
 `COMP-001`; both reference `API-001`. Accepted `ADR-001` references both components.
 
-From the repository root after building `mdx`:
+From the repository root after building `docvera`:
 
 ```sh
 root=examples/use-cases/architecture-governance
-target/debug/mdx --root "$root" check
-target/debug/mdx --root "$root" index
-target/debug/mdx --root "$root" query sql "$(cat "$root/queries/layer-violations.sql")" --format json
-target/debug/mdx --root "$root" query sql "$(cat "$root/queries/unlinked-adrs.sql")" --format json
-target/debug/mdx --root "$root" graph incoming COMP-001 --depth 2 --format json
-target/debug/mdx --root "$root" graph outgoing COMP-002 --depth 2 --format json
+target/debug/docvera --root "$root" check
+target/debug/docvera --root "$root" index
+target/debug/docvera --root "$root" query sql "$(cat "$root/queries/layer-violations.sql")" --format json
+target/debug/docvera --root "$root" query sql "$(cat "$root/queries/unlinked-adrs.sql")" --format json
+target/debug/docvera --root "$root" graph incoming COMP-001 --depth 2 --format json
+target/debug/docvera --root "$root" graph outgoing COMP-002 --depth 2 --format json
 ```
 
 Expected: 5 documents, no diagnostics; both reports have `rows: []`.
