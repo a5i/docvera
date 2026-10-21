@@ -43,6 +43,63 @@ pub struct Diagnostic {
     pub rule: String,
     pub severity: String,
     pub message: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shacl: Option<ShaclResult>,
+}
+
+/// Adapter-owned representation: no Rudof structs in the public contract.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum RdfTerm {
+    Iri {
+        value: String,
+    },
+    /// Anonymous labels are deliberately omitted: engine IDs are not stable.
+    BlankNode,
+    Literal {
+        value: String,
+        datatype: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        language: Option<String>,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum RdfPath {
+    Predicate { iri: String },
+    Sequence { paths: Vec<RdfPath> },
+    Alternative { paths: Vec<RdfPath> },
+    Inverse { path: Box<RdfPath> },
+    ZeroOrMore { path: Box<RdfPath> },
+    OneOrMore { path: Box<RdfPath> },
+    ZeroOrOne { path: Box<RdfPath> },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[serde(rename_all = "camelCase")]
+pub struct ShaclMessage {
+    pub value: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub language: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[serde(rename_all = "camelCase")]
+pub struct ShaclResult {
+    pub focus_node: RdfTerm,
+    pub constraint_component: String,
+    pub result_severity: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_shape: Option<RdfTerm>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub result_path: Option<RdfPath>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub value: Option<RdfTerm>,
+    pub messages: Vec<ShaclMessage>,
+    /// RFC 6901 JSON pointer into front matter, only when precisely located.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_field: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -84,6 +141,9 @@ pub struct Document {
     pub sections: Vec<Section>,
     pub nodes: Vec<Node>,
     pub links: Vec<Link>,
+    /// RFC 6901 pointers into metadata; derived parser provenance, not public IR.
+    #[serde(skip)]
+    pub metadata_spans: std::collections::BTreeMap<String, Span>,
     pub diagnostics: Vec<Diagnostic>,
 }
 impl Document {
@@ -94,10 +154,49 @@ impl Document {
             rule: rule.into(),
             severity: "error".into(),
             message: message.into(),
+            shacl: None,
         });
     }
     pub fn whole_span(&self) -> Span {
         Span::new(&self.source, 0, self.source.len())
+    }
+    pub fn field_item_span(&self, field: &str, index: usize) -> Span {
+        let Some(name) = field.strip_prefix("frontMatter.") else {
+            return self.metadata_span();
+        };
+        let mut pointer = format!(
+            "/{}",
+            name.split('.')
+                .map(crate::source_map::pointer_segment)
+                .collect::<Vec<_>>()
+                .join("/")
+        );
+        if self
+            .metadata
+            .pointer(&pointer)
+            .is_some_and(serde_json::Value::is_array)
+        {
+            pointer.push_str(&format!("/{index}"));
+        }
+        self.metadata_spans
+            .get(&pointer)
+            .cloned()
+            .unwrap_or_else(|| self.field_span(field))
+    }
+    pub fn field_span(&self, field: &str) -> Span {
+        let pointer = field.strip_prefix("frontMatter.").map(|name| {
+            format!(
+                "/{}",
+                name.split('.')
+                    .map(crate::source_map::pointer_segment)
+                    .collect::<Vec<_>>()
+                    .join("/")
+            )
+        });
+        pointer
+            .and_then(|p| self.metadata_spans.get(&p))
+            .cloned()
+            .unwrap_or_else(|| self.metadata_span())
     }
     pub fn metadata_span(&self) -> Span {
         Span::new(&self.source, 0, self.body_start)

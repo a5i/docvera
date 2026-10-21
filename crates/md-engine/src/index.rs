@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS documents(internal_id TEXT PRIMARY KEY, declared_id T
 CREATE TABLE IF NOT EXISTS sections(section_id TEXT PRIMARY KEY, document_id TEXT NOT NULL, heading TEXT, level INTEGER, parent_id TEXT, ordinal INTEGER, text TEXT, span TEXT);
 CREATE TABLE IF NOT EXISTS nodes(node_id TEXT PRIMARY KEY, document_id TEXT, section_id TEXT, kind TEXT, language TEXT, span TEXT);
 CREATE TABLE IF NOT EXISTS relations(source_document_id TEXT, target_document_id TEXT, kind TEXT, reference TEXT, resolution_status TEXT, source_span TEXT);
-CREATE TABLE IF NOT EXISTS diagnostics(document_id TEXT, rule TEXT, severity TEXT, span TEXT, message TEXT);
+CREATE TABLE IF NOT EXISTS diagnostics(document_id TEXT, rule TEXT, severity TEXT, span TEXT, message TEXT, shacl TEXT);
 CREATE VIRTUAL TABLE IF NOT EXISTS section_fts USING fts5(section_id UNINDEXED, document_id UNINDEXED, title, heading, body, tokenize='unicode61');
 CREATE INDEX IF NOT EXISTS relation_source ON relations(source_document_id);
 CREATE INDEX IF NOT EXISTS relation_target ON relations(target_document_id);
@@ -65,6 +65,15 @@ pub fn index(workspace: &Workspace, rebuild: bool) -> Result<IndexResult> {
     conn.busy_timeout(Duration::from_secs(5))?;
     conn.execute_batch(DDL)?;
     let tx = conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+    // Additive format-v1 migration: old snapshots retain their content/FTS rows.
+    let has_shacl: bool = tx.query_row(
+        "SELECT EXISTS(SELECT 1 FROM pragma_table_info('diagnostics') WHERE name='shacl')",
+        [],
+        |r| r.get(0),
+    )?;
+    if !has_shacl {
+        tx.execute("ALTER TABLE diagnostics ADD COLUMN shacl TEXT", [])?;
+    }
     let old_fingerprint: Option<String> = tx
         .query_row(
             "SELECT value FROM engine_meta WHERE key='fingerprint'",
@@ -175,13 +184,14 @@ pub fn index(workspace: &Workspace, rebuild: bool) -> Result<IndexResult> {
     let check = workspace.check();
     for d in &check.diagnostics {
         tx.execute(
-            "INSERT INTO diagnostics VALUES (?1,?2,?3,?4,?5)",
+            "INSERT INTO diagnostics(document_id,rule,severity,span,message,shacl) VALUES (?1,?2,?3,?4,?5,?6)",
             params![
                 d.path,
                 d.rule,
                 d.severity,
                 serde_json::to_string(&d.span)?,
-                d.message
+                d.message,
+                d.shacl.as_ref().map(serde_json::to_string).transpose()?
             ],
         )?;
     }

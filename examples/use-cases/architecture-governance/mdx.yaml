@@ -1,7 +1,0 @@
-version: 1
-include: ['docs/**/*.md']
-schemas:
-  'docs/architecture.md': schemas/architecture.yaml
-  'docs/component*.md': schemas/component.yaml
-  'docs/adr.md': schemas/adr.yaml
-  'docs/interface.md': schemas/interface.yaml

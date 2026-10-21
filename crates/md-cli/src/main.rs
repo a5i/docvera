@@ -92,8 +92,9 @@ fn run(cli: &Cli) -> Result<(Value, u8)> {
         ),
         Command::Check { warnings_as_errors } => {
             let result = Workspace::load(root)?.check();
-            let invalid =
-                !result.valid() || (*warnings_as_errors && !result.diagnostics.is_empty());
+            let invalid = !result.valid()
+                || (*warnings_as_errors
+                    && result.diagnostics.iter().any(|d| d.severity == "warning"));
             (serde_json::to_value(result)?, u8::from(invalid))
         }
         Command::Index { rebuild } => (

@@ -1,29 +1,18 @@
 use crate::{
+    config::Config,
     model::*,
-    parser,
+    parser, policy,
     schema::{self, Schema},
 };
 use anyhow::{Context, Result, bail};
 use globset::Glob;
 use percent_encoding::percent_decode_str;
-use serde::Deserialize;
 use serde_json::Value;
 use std::{
-    collections::BTreeMap,
     fs,
     path::{Component, Path, PathBuf},
 };
 use walkdir::WalkDir;
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct Config {
-    pub version: u32,
-    pub include: Vec<String>,
-    #[serde(default)]
-    pub exclude: Vec<String>,
-    pub schemas: BTreeMap<String, String>,
-}
 
 pub struct Workspace {
     pub root: PathBuf,
@@ -49,12 +38,8 @@ pub fn within(root: &Path, path: &Path) -> Result<PathBuf> {
 impl Workspace {
     pub fn load(root: &Path) -> Result<Self> {
         let root = root.canonicalize()?;
-        let config_text =
-            fs::read_to_string(root.join("mdx.yaml")).context("Missing mdx.yaml; run mdx init")?;
-        let config: Config = serde_saphyr::from_str(&config_text)?;
-        if config.version != 1 {
-            bail!("Unsupported workspace version");
-        }
+        let (config, config_text) = Config::load(&root)?;
+        let policies = policy::Policies::load(&root, config.validation.shacl.as_ref())?;
         let includes = config
             .include
             .iter()
@@ -98,6 +83,7 @@ impl Workspace {
         let mut fingerprint = blake3::Hasher::new();
         fingerprint.update(env!("CARGO_PKG_VERSION").as_bytes());
         fingerprint.update(config_text.as_bytes());
+        policies.fingerprint(&mut fingerprint);
         for (path, absolute) in paths {
             let mut doc = parser::parse(path.clone(), fs::read_to_string(&absolute)?);
             let selected = if let Some(selector) = doc.metadata.get("$schema") {
@@ -180,22 +166,22 @@ impl Workspace {
                         None => vec![],
                     };
                     if values.len() < rule.min || rule.max.is_some_and(|max| values.len() > max) {
-                        let span = documents[i].metadata_span();
+                        let span = documents[i].field_span(&rule.from);
                         documents[i].diagnostic(
                             span,
                             "relation.cardinality",
                             format!("{} has {} targets", rule.from, values.len()),
                         );
                     }
-                    for value in values {
-                        let span = documents[i].metadata_span();
+                    for (item_index, value) in values.into_iter().enumerate() {
+                        let span = documents[i].field_item_span(&rule.from, item_index);
                         if let Some(reference) = value.as_str() {
                             let relation = resolve(
                                 &root,
                                 &documents,
                                 i,
                                 reference,
-                                Some(&rule.target_type),
+                                rule.target_type.as_deref(),
                                 &rule.from,
                                 span.clone(),
                             );
@@ -242,6 +228,7 @@ impl Workspace {
                 relations.push(relation);
             }
         }
+        policies.validate(&mut documents, &relations)?;
         Ok(Self {
             root,
             documents,
@@ -256,12 +243,24 @@ impl Workspace {
             .flat_map(|d| d.diagnostics.clone())
             .collect();
         diagnostics.sort_by(|a, b| {
-            (&a.path, a.span.start, &a.rule, &a.message).cmp(&(
-                &b.path,
-                b.span.start,
-                &b.rule,
-                &b.message,
-            ))
+            (
+                &a.path,
+                a.span.start,
+                &a.rule,
+                &a.message,
+                &a.severity,
+                &a.shacl,
+                a.span.end,
+            )
+                .cmp(&(
+                    &b.path,
+                    b.span.start,
+                    &b.rule,
+                    &b.message,
+                    &b.severity,
+                    &b.shacl,
+                    b.span.end,
+                ))
         });
         CheckResult {
             contract_version: CONTRACT_VERSION,

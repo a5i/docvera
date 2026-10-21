@@ -21,6 +21,7 @@ for (const [name, count, file, from, to] of [
   ['operational-readiness', 4, 'service.md', 'runbook: RUN-001\n', ''],
   ['architecture-governance', 5, 'adr.md', 'components: [COMP-001, COMP-002]\n', ''],
   ['project-governance', 4, 'specification.md', 'status: approved', 'status: draft'],
+  ['design-invariants', 9, 'pattern-import.md', 'states: [loading, success]', 'states: [processing, success]'],
 ]) {
   test(`${name}: shared fixtures, policy reports and native/CLI parity`, async () => {
     const root = mkdtempSync(join(tmpdir(), 'mdx-case-'));
@@ -62,6 +63,18 @@ for (const [name, count, file, from, to] of [
         for (const [id, direction] of [['COMP-001', 'incoming'], ['COMP-002', 'outgoing']]) {
           assert.deepEqual(await engine.references({ id, direction, depth: 1 }), cli(root, ['graph', direction, id, '--depth', '1']));
         }
+      }
+      if (name === 'design-invariants') {
+        writeFileSync(path, original.replace('states: [loading, success]', 'states: [success]'));
+        const violation = await engine.check();
+        assert.deepEqual(violation, cli(root, ['check'], 1));
+        assert.ok(violation.diagnostics.some(d => d.rule.startsWith('shacl.') && d.message.includes('async-pattern-declares-progress-state')));
+        const policyPath = join(root, 'policies/design-invariants.ttl');
+        const policy = readFileSync(policyPath, 'utf8');
+        writeFileSync(policyPath, 'not Turtle');
+        await assert.rejects(engine.check(), /SHACL/);
+        assert.match(cli(root, ['check'], 2).error.message, /SHACL/);
+        writeFileSync(policyPath, policy);
       }
       writeFileSync(path, original.replace(/^owner: .+\n/m, ''));
       const invalid = await engine.check();

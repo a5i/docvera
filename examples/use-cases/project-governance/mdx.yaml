@@ -1,7 +1,0 @@
-version: 1
-include: ['docs/**/*.md']
-schemas:
-  'docs/charter.md': schemas/charter.yaml
-  'docs/milestone.md': schemas/milestone.yaml
-  'docs/epic.md': schemas/epic.yaml
-  'docs/specification.md': schemas/specification.yaml

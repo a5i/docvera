@@ -1,0 +1,25 @@
+schemaVersion: 1
+documentType: interaction-pattern
+frontMatter:
+  type: object
+  required: [id, owner, lifecycle, capabilities, states]
+  properties:
+    id: {type: string, pattern: '^PTN-[0-9]+$'}
+    owner: {type: string, minLength: 1}
+    lifecycle: {enum: [draft, reviewed, stable, deprecated]}
+    capabilities:
+      type: array
+      items: {enum: [static, network, mutation, destructive]}
+    states: {type: array, items: {type: string}}
+    failures: {type: array, items: {type: string}}
+    failureScenarios: {type: array, items: {type: string}}
+    implementedBy: {type: array, items: {type: string}}
+  additionalProperties: false
+identity: {field: frontMatter.id, uniqueWithin: workspace}
+relations:
+  - {from: frontMatter.failureScenarios, targetType: failure-scenario, min: 0}
+  - {from: frontMatter.implementedBy, min: 0}
+body:
+  sections:
+    - {title: Behavior, nonEmpty: true}
+    - {title: States, nonEmpty: true}

@@ -1,0 +1,89 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix type: <urn:mdx:v1:type:> .
+@prefix policy: <urn:mdx:policy:design:> .
+
+policy:failure-capable-pattern-has-failure-scenario
+    a sh:NodeShape ; sh:targetClass type:interaction-pattern ;
+    sh:sparql [
+        sh:message "Failure-capable pattern without a failure scenario" ;
+        sh:select """
+            PREFIX f: <urn:mdx:v1:field:>
+            SELECT $this WHERE {
+                FILTER (EXISTS { $this f:capabilities ?c . FILTER (?c IN ("network", "mutation", "destructive")) }
+                        || EXISTS { $this f:failures ?failure })
+                FILTER NOT EXISTS { $this f:failureScenarios ?scenario }
+            }
+        """
+    ] .
+
+policy:async-pattern-declares-progress-state
+    a sh:NodeShape ; sh:targetClass type:interaction-pattern ;
+    sh:sparql [
+        sh:message "Async pattern lacks a progress and a success state" ;
+        sh:select """
+            PREFIX f: <urn:mdx:v1:field:>
+            SELECT DISTINCT $this WHERE {
+                $this f:capabilities ?c . FILTER (?c IN ("network", "mutation"))
+                FILTER (!EXISTS { $this f:states ?s . FILTER (?s IN ("loading", "processing")) }
+                        || !EXISTS { $this f:states "success" })
+            }
+        """
+    ] .
+
+policy:stable-pattern-implemented-or-tracked
+    a sh:NodeShape ; sh:targetClass type:interaction-pattern ;
+    sh:sparql [
+        sh:message "Stable pattern neither implemented nor tracked by an open finding" ;
+        sh:select """
+            PREFIX f: <urn:mdx:v1:field:>
+            PREFIX type: <urn:mdx:v1:type:>
+            SELECT $this WHERE {
+                $this f:lifecycle "stable" .
+                FILTER NOT EXISTS { $this f:implementedBy ?implementation }
+                FILTER NOT EXISTS { ?finding a type:finding ; f:entity $this ; f:status "open" }
+            }
+        """
+    ] .
+
+policy:stable-principle-governs-a-rule
+    a sh:NodeShape ; sh:targetClass type:principle ;
+    sh:sparql [
+        sh:message "Stable principle without a governed rule" ;
+        sh:select """
+            PREFIX f: <urn:mdx:v1:field:>
+            PREFIX type: <urn:mdx:v1:type:>
+            SELECT $this WHERE {
+                $this f:lifecycle ?lifecycle . FILTER (?lifecycle IN ("reviewed", "stable"))
+                FILTER NOT EXISTS { $this f:governs ?rule . ?rule a type:rule }
+            }
+        """
+    ] .
+
+policy:stable-rule-governed-by-active-principle
+    a sh:NodeShape ; sh:targetClass type:rule ;
+    sh:sparql [
+        sh:message "Stable rule without an active governing principle" ;
+        sh:select """
+            PREFIX f: <urn:mdx:v1:field:>
+            PREFIX type: <urn:mdx:v1:type:>
+            SELECT $this WHERE {
+                $this f:lifecycle "stable" .
+                FILTER NOT EXISTS {
+                    ?principle a type:principle ; f:governs $this ; f:lifecycle ?lifecycle .
+                    FILTER (?lifecycle IN ("reviewed", "stable"))
+                }
+            }
+        """
+    ] .
+
+policy:deprecated-principle-unreferenced
+    a sh:NodeShape ; sh:targetClass type:principle ;
+    sh:sparql [
+        sh:message "Deprecated principle is still referenced" ;
+        sh:select """
+            PREFIX f: <urn:mdx:v1:field:>
+            SELECT DISTINCT $this WHERE {
+                $this f:lifecycle "deprecated" . ?rule f:governedBy $this .
+            }
+        """
+    ] .

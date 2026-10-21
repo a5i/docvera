@@ -1,0 +1,17 @@
+schemaVersion: 1
+documentType: principle
+frontMatter:
+  type: object
+  required: [id, owner, lifecycle]
+  properties:
+    id: {type: string, pattern: '^PRIN-[0-9]+$'}
+    owner: {type: string, minLength: 1}
+    lifecycle: {enum: [draft, reviewed, stable, deprecated]}
+    governs: {type: array, items: {type: string}}
+  additionalProperties: false
+identity: {field: frontMatter.id, uniqueWithin: workspace}
+relations:
+  - {from: frontMatter.governs, targetType: rule, min: 0}
+body:
+  sections:
+    - {title: Intent, nonEmpty: true}

@@ -1,9 +1,9 @@
 # Executable document-governance use cases
 
-These five offline workspaces translate representative rules from
-[`demo/cases.md`](../../demo/cases.md) into today's schema DSL and SQLite reports.
-They are examples **and** shared integration-test fixtures, not five new engine features.
-The small [`mdx init` starter](../workspace) remains unchanged.
+These six offline workspaces translate representative rules from
+[`demo/cases.md`](../../demo/cases.md) into today's schema validation, SHACL policies and SQLite reports.
+They are examples **and** shared integration-test fixtures, not six new engine features.
+The small [`mdx init` starter](../workspace) uses `mdx.toml`; document schemas remain YAML.
 
 | Role | Workspace | Documents | Reports |
 |---|---|---:|---|
@@ -12,6 +12,7 @@ The small [`mdx init` starter](../workspace) remains unchanged.
 | Platform Engineer | [Operational readiness](operational-readiness) | 4 | Missing operational docs/SLOs; overdue reviews |
 | Software Architect | [Architecture governance](architecture-governance) | 5 | Layer violations; accepted ADRs without components |
 | Project Manager | [Project governance](project-governance) | 4 | Documentation drift; incomplete milestone deliverables |
+| DS Lead | [Design invariants](design-invariants) | 9 | Untracked stable patterns; SHACL cross-document diagnostics |
 
 ## Run an example
 
@@ -38,14 +39,13 @@ Copy the workspace before trying edits if you want to keep the tracked examples 
 ## Validation versus reporting
 
 - **Validation today:** required metadata, conditional front-matter JSON Schema,
-  section/content rules, unique IDs, typed outgoing references and cardinality.
+  section/content rules, unique IDs, typed outgoing references and cardinality; SHACL Core/SPARQL policies in the design-invariants workspace.
   `check` reads source without an index; errors exit 1.
 - **Reporting today:** SQL over the last explicit indexed snapshot. Business-policy
-  violations are rows, not `check` diagnostics. A successful SQL report exits 0 even
+  violations in the first five workspaces are rows, not `check` diagnostics; the design-invariants workspace explicitly enables SHACL validation. A successful SQL report exits 0 even
   when it finds violations. Re-run `index` after edits.
-- **Deferred:** lifecycle-dependent body/relation rules, transition validation,
-  configurable cross-document policy severities, acyclic-relation validation,
-  named-query execution, live Jira/Confluence/CI import and external availability
+- **Deferred:** transition validation, full SHACL conformance/resource isolation,
+  dedicated acyclic-relation APIs, named-query execution, live Jira/Confluence/CI import and external availability
   (`pass`/`fail`/`unknown`). None is simulated as a working engine feature.
 
 The examples use standalone documents for entities needing IDs and relations.

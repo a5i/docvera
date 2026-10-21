@@ -1,7 +1,11 @@
+pub mod config;
 pub mod index;
 pub mod model;
 pub mod parser;
+mod policy;
 pub mod schema;
+mod shacl_report;
+mod source_map;
 pub mod workspace;
 
 use anyhow::{Result, bail};
@@ -14,8 +18,8 @@ pub use workspace::Workspace;
 
 pub const EXAMPLE_FILES: &[(&str, &str)] = &[
     (
-        "mdx.yaml",
-        include_str!("../../../examples/workspace/mdx.yaml"),
+        "mdx.toml",
+        include_str!("../../../examples/workspace/mdx.toml"),
     ),
     (
         "schemas/adr.yaml",
@@ -45,6 +49,11 @@ pub const EXAMPLE_FILES: &[(&str, &str)] = &[
 
 /// Never overwrite existing files. Intended for a fresh demonstration directory.
 pub fn init(root: &Path) -> Result<Vec<String>> {
+    if root.join("mdx.toml").try_exists()? || root.join("mdx.yaml").try_exists()? {
+        bail!(
+            "Workspace config already exists; refusing to overwrite or create a conflicting config"
+        );
+    }
     for (path, _) in EXAMPLE_FILES {
         if root.join(path).exists() {
             bail!("Refusing to overwrite {}", root.join(path).display());

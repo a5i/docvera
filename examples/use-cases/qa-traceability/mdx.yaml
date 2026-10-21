@@ -1,7 +1,0 @@
-version: 1
-include: ['docs/**/*.md']
-schemas:
-  'docs/release.md': schemas/release.yaml
-  'docs/requirement*.md': schemas/requirement.yaml
-  'docs/test.md': schemas/test.yaml
-  'docs/execution*.md': schemas/execution.yaml

@@ -1,0 +1,12 @@
+version = 1
+include = ["docs/**/*.md"]
+
+[schemas]
+"docs/principle*.md" = "schemas/principle.yaml"
+"docs/rule*.md" = "schemas/rule.yaml"
+"docs/pattern*.md" = "schemas/pattern.yaml"
+"docs/failure-scenario*.md" = "schemas/failure-scenario.yaml"
+"docs/finding*.md" = "schemas/finding.yaml"
+
+[validation.shacl]
+shapes = ["policies/design-invariants.ttl"]

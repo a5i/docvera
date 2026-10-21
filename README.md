@@ -2,13 +2,26 @@
 
 A cross-platform **Rust prototype** that turns Git-managed Markdown into a validated, typed, queryable local knowledge base. The same engine powers the `mdx` CLI and a native Node.js addon; Node does not spawn the CLI.
 
-**Implemented:** YAML/JSON schemas, section-tree validation, lint warnings, ID uniqueness, typed metadata relations, Markdown links/anchors, incremental index writes, read-only SQL, graph traversal, section-level BM25 search and original Markdown extraction.
+**Implemented:** YAML/JSON schemas, section-tree validation, lint warnings, ID uniqueness, typed metadata relations, SHACL Core/SPARQL cross-document policies, Markdown links/anchors, incremental index writes, read-only SQL, graph traversal, section-level BM25 search and original Markdown extraction.
 
 **Prototype choices:** SQLite + bundled FTS5 instead of DuckDB, and pulldown-cmark instead of comrak. No database server or downloadable extensions. See [architecture and limitations](docs/architecture.md), [schema language](docs/schema.md), and [v1 command contracts](docs/contracts/v1.json). The [original proposal](docs/input/markdown_knowledge_engine_poc_en-2.md) is a roadmap, not a claim that every proposed capability is implemented.
 
+## Install from source
+
+Install the CLI into `~/.cargo/bin` (assumed to be on `PATH`):
+
+```sh
+cargo install --locked --path crates/md-cli
+mdx --version   # mdx 0.1.0
+```
+
+Updating is the same command re-run over the existing installation. A local build without installing works too: `cargo build --locked --release -p md-cli`, then use `target/release/mdx` (Windows: `target\release\mdx.exe`).
+
+Requirements: a current stable Rust toolchain and a C/C++ compiler — SQLite is compiled from bundled source (Windows: Visual Studio Build Tools with the C++ workload; macOS: Xcode command-line tools; Linux: GCC/Clang and standard build tools). Crates are downloaded once from the pinned `Cargo.lock`, including the Rudof SHACL engine. The native Node.js addon is **not** published to npm; build it locally as shown in the Node.js API section below.
+
 ## Try the entire cycle
 
-Install a current stable Rust toolchain and a C/C++ compiler (SQLite is compiled from bundled source). Windows: Visual Studio Build Tools with the C++ workload. macOS: Xcode command-line tools. Linux: GCC/Clang and standard build tools.
+Prerequisites: see [Install from source](#install-from-source). Run the full cycle without installing:
 
 ```sh
 cargo build --locked --release -p md-cli
@@ -35,9 +48,9 @@ Or run the binary directly: `target/release/mdx` (Windows: `target\release\mdx.e
 
 ## Role-based examples
 
-The five [executable use-case workspaces](examples/use-cases/README.md) cover product
+The six [executable use-case workspaces](examples/use-cases/README.md) cover product
 traceability, project governance with offline snapshots, architecture governance,
-QA coverage and operational readiness. Each includes schemas, Markdown documents,
+QA coverage, operational readiness and SHACL design invariants. Each includes schemas, Markdown documents,
 SQL reports and expected results, and doubles as an integration-test fixture.
 They distinguish current validation from reporting-only policies and deferred features.
 
@@ -72,7 +85,20 @@ body:
           - title: Usage            # mandatory H2, after Installation
 ```
 
-Map files to schemas in `mdx.yaml`, or set `$schema` in a document's front matter. Explicit selectors are relative to the document; mappings are relative to the workspace. The reserved `$schema` selector is removed before metadata validation, so `additionalProperties: false` works normally.
+Map files to schemas in `mdx.toml`, or set `$schema` in a document's front matter. Explicit selectors are relative to the document; mappings are relative to the workspace. The reserved `$schema` selector is removed before metadata validation, so `additionalProperties: false` works normally.
+
+## Add cross-document policies
+
+Keep configuration in `mdx.toml` and standard SHACL rules in separate Turtle files:
+
+```toml
+[validation.shacl]
+shapes = ["policies/relations.ttl", "policies/lifecycle.ttl"]
+```
+
+`check` builds an in-memory RDF projection from current documents and resolved references, runs pinned Rudof SHACL Native validation (Core plus tested inline SPARQL), and maps violations back to Markdown diagnostics. No persistent RDF store or SQL index is required. See [policy examples, RDF vocabulary and limits](docs/shacl.md) and the runnable [design-invariants workspace](examples/use-cases/design-invariants).
+
+`mdx init` and tracked examples use TOML. Legacy `mdx.yaml` remains a migration fallback; having both configs is an error. Local document schemas remain YAML/JSON. There is no custom `constraints` assertion DSL.
 
 ## Node.js API
 
@@ -114,7 +140,7 @@ mdx check --warnings-as-errors --format json
 - `--root` and `--format` are global and can appear before/after a subcommand.
 - `json`: one versioned result object; `jsonl`: the same envelope on one compact line.
 - Exit **0**: success; **1**: validation failed; **2**: operational/usage error.
-- Lint warnings do not fail checks unless `--warnings-as-errors` is set.
+- Lint and SHACL warnings do not fail checks unless `--warnings-as-errors` is set.
 - SQL: SQLite syntax, five public tables (`documents`, `sections`, `nodes`, `relations`, `diagnostics`), allowlisted functions, no writes/ATTACH/PRAGMA/extension loading, 1,000-row cap and approximately two-second VM deadline. This is defense in depth, **not a memory-isolated adversarial SQL sandbox**.
 - Search text is a literal phrase, not an FTS expression. Results have positive relevance scores, source spans and deterministic tie-breaking.
 - Spans use zero-based UTF-8 byte offsets (exclusive end); line/column coordinates are one-based Unicode scalar positions.

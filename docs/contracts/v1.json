@@ -23,6 +23,8 @@
   },
   "span": { "offsets": "zero-based UTF-8 bytes; end exclusive", "positions": "one-based lines and Unicode scalar columns" },
   "diagnostic": ["path", "span", "rule", "severity", "message"],
+  "diagnostic.shacl": "Optional structured SHACL report on evaluated violations: focusNode, constraintComponent, resultSeverity, sourceShape, resultPath, value, messages, sourceField (RFC 6901 pointer); absent on local/operational diagnostics",
+  "diagnosticSeverities": ["error", "warning", "info"],
   "jsonl": "One compact versioned result envelope per command invocation, not one row per line",
   "snapshot": "query, graph, search and extract read the last successful index operation; run index explicitly after edits",
   "stdout": "Only result data in JSON/JSONL; operational failures are JSON envelopes. clap usage errors/help use its standard streams."

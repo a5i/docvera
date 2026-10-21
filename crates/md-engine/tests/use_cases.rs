@@ -100,6 +100,15 @@ fn every_scenario_rejects_missing_owner_missing_section_duplicate_id_and_wrong_t
             "specification: SPEC-001",
             "specification: MS-001",
         ),
+        (
+            "design-invariants",
+            "docs/pattern-import.md",
+            "identity-team",
+            "Behavior",
+            "PTN-1",
+            "failureScenarios: [FAIL-1]",
+            "failureScenarios: [RULE-1]",
+        ),
     ] {
         for (from, to, rule) in [
             (
@@ -132,6 +141,7 @@ fn every_scenario_rejects_missing_owner_missing_section_duplicate_id_and_wrong_t
             "qa-traceability" => "test",
             "operational-readiness" => "service",
             "architecture-governance" => "component",
+            "design-invariants" => "pattern",
             _ => "epic",
         };
         let duplicate = original.replacen(
@@ -261,6 +271,11 @@ fn every_scenario_reindexes_deletions_and_inbound_references() {
         ("operational-readiness", "docs/runbook.md", "RUN-001"),
         ("architecture-governance", "docs/interface.md", "API-001"),
         ("project-governance", "docs/specification.md", "SPEC-001"),
+        (
+            "design-invariants",
+            "docs/failure-scenario-import-network.md",
+            "FAIL-1",
+        ),
     ] {
         let dir = fixture(name);
         refresh(dir.path());
@@ -377,5 +392,67 @@ fn architecture_graph_traverses_dependencies_in_both_directions() {
                 .iter()
                 .any(|e| e["kind"] == "frontMatter.dependsOn")
         );
+    }
+}
+
+#[test]
+fn design_invariant_breakages_map_to_named_constraint_rules() {
+    for (file, from, to, expected) in [
+        (
+            "docs/pattern-import.md",
+            "states: [loading, success]",
+            "states: [success]",
+            "urn:mdx:policy:design:async-pattern-declares-progress-state",
+        ),
+        (
+            "docs/pattern-import.md",
+            "failureScenarios: [FAIL-1]\n",
+            "",
+            "urn:mdx:policy:design:failure-capable-pattern-has-failure-scenario",
+        ),
+        (
+            "docs/finding-import-implementation.md",
+            "status: open",
+            "status: resolved",
+            "urn:mdx:policy:design:stable-pattern-implemented-or-tracked",
+        ),
+        (
+            "docs/principle-simplicity.md",
+            "governs: [RULE-2]",
+            "governs: []",
+            "urn:mdx:policy:design:stable-principle-governs-a-rule",
+        ),
+        (
+            "docs/principle-legacy-navigation.md",
+            "lifecycle: deprecated",
+            "lifecycle: stable",
+            "urn:mdx:policy:design:stable-principle-governs-a-rule",
+        ),
+        (
+            "docs/rule-plain-words.md",
+            "governedBy: [PRIN-2]",
+            "governedBy: [PRIN-3]",
+            "urn:mdx:policy:design:deprecated-principle-unreferenced",
+        ),
+    ] {
+        let dir = fixture("design-invariants");
+        edit(dir.path(), file, from, to);
+        let result = check(dir.path());
+        assert!(!result.valid(), "{file}: {from}");
+        assert!(
+            result
+                .diagnostics
+                .iter()
+                .any(|d| d.rule.starts_with("shacl.") && d.message.contains(expected)),
+            "{file}: {from} => {expected}, got {:?}",
+            result.diagnostics
+        );
+        // The reciprocal governance rule fires when RULE-2 loses its governor.
+        if from == "governs: [RULE-2]" {
+            assert!(result.diagnostics.iter().any(|d| {
+                d.message
+                    .contains("urn:mdx:policy:design:stable-rule-governed-by-active-principle")
+            }));
+        }
     }
 }

@@ -12,8 +12,29 @@ export interface Diagnostic {
   path: string;
   span: Span;
   rule: string;
-  severity: 'error' | 'warning';
+  severity: 'error' | 'warning' | 'info';
   message: string;
+  /** Present on evaluated SHACL violations, absent on local/operational diagnostics. */
+  shacl?: ShaclResult;
+}
+export type RdfTerm =
+  | { kind: 'iri'; value: string }
+  | { kind: 'blankNode' }
+  | { kind: 'literal'; value: string; datatype: string; language?: string };
+export type RdfPath =
+  | { kind: 'predicate'; iri: string }
+  | { kind: 'sequence' | 'alternative'; paths: RdfPath[] }
+  | { kind: 'inverse' | 'zeroOrMore' | 'oneOrMore' | 'zeroOrOne'; path: RdfPath };
+export interface ShaclResult {
+  focusNode: RdfTerm;
+  constraintComponent: string;
+  resultSeverity: string;
+  sourceShape?: RdfTerm;
+  resultPath?: RdfPath;
+  value?: RdfTerm;
+  messages: { value: string; language?: string }[];
+  /** RFC 6901 JSON pointer into front matter, when an exact location is available. */
+  sourceField?: string;
 }
 export interface CheckResult {
   contractVersion: 1;

@@ -45,6 +45,7 @@ fn all_use_cases_check_index_query_and_fail_with_validation_exit_code() {
             "qa-traceability" => "docs/requirement.md",
             "operational-readiness" => "docs/service.md",
             "architecture-governance" => "docs/component.md",
+            "design-invariants" => "docs/pattern-import.md",
             _ => "docs/epic.md",
         };
         edit(root, file, "owner: identity-team\n", "");
@@ -94,4 +95,102 @@ fn operational_search_extract_and_architecture_graph_commands() {
                 .any(|e| e["kind"] == "frontMatter.dependsOn")
         );
     }
+}
+
+#[test]
+fn shacl_violations_and_load_failures_have_distinct_exit_codes() {
+    let dir = fixture("design-invariants");
+    edit(
+        dir.path(),
+        "docs/pattern-import.md",
+        "states: [loading, success]",
+        "states: [success]",
+    );
+    let result = run(dir.path(), &["check"], 1);
+    assert!(result["diagnostics"].as_array().unwrap().iter().any(|d| {
+        d["rule"].as_str().unwrap().starts_with("shacl.")
+            && d["message"]
+                .as_str()
+                .unwrap()
+                .contains("async-pattern-declares-progress-state")
+    }));
+    fs::write(
+        dir.path().join("policies/design-invariants.ttl"),
+        "not Turtle",
+    )
+    .unwrap();
+    assert!(
+        run(dir.path(), &["check"], 2)["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("SHACL")
+    );
+}
+
+#[test]
+fn warnings_as_errors_does_not_promote_shacl_info() {
+    let dir = fixture("design-invariants");
+    let policy = "@prefix sh: <http://www.w3.org/ns/shacl#> . <urn:p> a sh:NodeShape ; sh:targetClass <urn:mdx:v1:type:interaction-pattern> ; sh:property [ sh:path <urn:missing> ; sh:minCount 1 ; sh:severity sh:Info ] .";
+    fs::write(dir.path().join("policies/design-invariants.ttl"), policy).unwrap();
+    let result = run(dir.path(), &["check", "--warnings-as-errors"], 0);
+    assert!(
+        result["diagnostics"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|d| d["severity"] == "info")
+    );
+    fs::write(
+        dir.path().join("policies/design-invariants.ttl"),
+        policy.replace("sh:Info", "sh:Warning"),
+    )
+    .unwrap();
+    run(dir.path(), &["check"], 0);
+    run(dir.path(), &["check", "--warnings-as-errors"], 1);
+}
+
+#[test]
+fn jsonl_keeps_one_physical_line_and_parity_for_structured_shacl_output() {
+    let dir = fixture("design-invariants");
+    // A Turtle triple-quoted literal puts a real newline inside sh:message;
+    // jsonl must stay a single physical line through proper JSON escaping.
+    fs::write(
+        dir.path().join("policies/design-invariants.ttl"),
+        "@prefix sh: <http://www.w3.org/ns/shacl#> . <urn:p> a sh:NodeShape ; sh:targetClass <urn:mdx:v1:type:interaction-pattern> ; sh:sparql [ sh:message \"\"\"line one\nline two\"\"\" ; sh:select \"SELECT $this WHERE {}\" ] .",
+    )
+    .unwrap();
+    let output = |format: &str| {
+        let out = Command::new(env!("CARGO_BIN_EXE_mdx"))
+            .arg("--root")
+            .arg(dir.path())
+            .args(["--format", format, "check"])
+            .output()
+            .unwrap();
+        assert_eq!(out.status.code(), Some(1));
+        assert!(out.stderr.is_empty());
+        out.stdout
+    };
+    let jsonl = String::from_utf8(output("jsonl")).unwrap();
+    assert_eq!(jsonl.lines().count(), 1, "{jsonl}");
+    let line: Value = serde_json::from_str(jsonl.trim_end()).unwrap();
+    assert_eq!(line["contractVersion"], 1);
+    let diagnostics = line["diagnostics"].as_array().unwrap();
+    assert_eq!(
+        diagnostics.len(),
+        2,
+        "only interaction-patterns are targeted"
+    );
+    for diagnostic in diagnostics {
+        assert_eq!(
+            diagnostic["shacl"]["messages"][0]["value"],
+            "line one\nline two"
+        );
+        assert!(diagnostic["shacl"]["sourceField"].is_null());
+        assert_eq!(
+            diagnostic["shacl"]["constraintComponent"],
+            "http://www.w3.org/ns/shacl#SPARQLConstraintComponent"
+        );
+    }
+    let json: Value = serde_json::from_slice(&output("json")).unwrap();
+    assert_eq!(json, line, "jsonl and json must carry identical payloads");
 }

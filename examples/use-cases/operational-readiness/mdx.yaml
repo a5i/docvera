@@ -1,7 +1,0 @@
-version: 1
-include: ['docs/**/*.md']
-schemas:
-  'docs/service.md': schemas/service.yaml
-  'docs/runbook.md': schemas/runbook.yaml
-  'docs/deployment.md': schemas/deployment.yaml
-  'docs/slo.md': schemas/slo.yaml

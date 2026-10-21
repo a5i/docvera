@@ -1,8 +1,0 @@
-version: 1
-include: ['docs/**/*.md']
-schemas:
-  'docs/vision.md': schemas/vision.yaml
-  'docs/initiative.md': schemas/initiative.yaml
-  'docs/feature*.md': schemas/feature.yaml
-  'docs/requirement.md': schemas/requirement.yaml
-  'docs/epic.md': schemas/epic.yaml

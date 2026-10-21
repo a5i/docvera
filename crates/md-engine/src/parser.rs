@@ -31,6 +31,7 @@ pub fn parse(path: String, source: String) -> Document {
         sections: vec![],
         nodes: vec![],
         links: vec![],
+        metadata_spans: Default::default(),
         diagnostics: vec![],
     };
     let mut lines = doc.source.split_inclusive('\n');
@@ -48,7 +49,10 @@ pub fn parse(path: String, source: String) -> Document {
         if let Some((end, body)) = close {
             doc.body_start = body;
             match serde_saphyr::from_str::<Value>(&doc.source[start..end]) {
-                Ok(value) if value.is_object() => doc.metadata = value,
+                Ok(value) if value.is_object() => {
+                    doc.metadata = value;
+                    doc.metadata_spans = crate::source_map::front_matter(&doc.source, start, end);
+                }
                 Ok(_) => doc.diagnostic(
                     Span::new(&doc.source, start, end),
                     "yaml.object",

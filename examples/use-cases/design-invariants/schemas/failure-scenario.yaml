@@ -1,0 +1,17 @@
+schemaVersion: 1
+documentType: failure-scenario
+frontMatter:
+  type: object
+  required: [id, owner, pattern]
+  properties:
+    id: {type: string, pattern: '^FAIL-[0-9]+$'}
+    owner: {type: string, minLength: 1}
+    pattern: {type: string}
+  additionalProperties: false
+identity: {field: frontMatter.id, uniqueWithin: workspace}
+relations:
+  - {from: frontMatter.pattern, targetType: interaction-pattern, min: 1}
+body:
+  sections:
+    - {title: Scenario, nonEmpty: true}
+    - {title: Impact, nonEmpty: true}

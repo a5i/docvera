@@ -4,21 +4,30 @@ This is a document-schema envelope, **not** a JSON Schema dialect. `frontMatter`
 
 ## Resolution and workspace
 
-`mdx.yaml` is required:
+`mdx.toml` is the canonical workspace configuration (`mdx init` creates it):
 
-```yaml
-version: 1
-include: ['docs/**/*.md']
-exclude: ['docs/drafts/**']
-schemas:
-  'docs/adr-*.md': schemas/adr.yaml
+```toml
+version = 1
+include = ["docs/**/*.md"]
+exclude = ["docs/drafts/**"]
+
+[schemas]
+"docs/adr-*.md" = "schemas/adr.yaml"
+
+# Optional: policies are standard SHACL in separate Turtle files.
+[validation.shacl]
+shapes = ["policies/relations.ttl", "policies/lifecycle.ttl"]
 ```
+
+Omit `[validation.shacl]` to run local/schema/reference checks without SHACL. An enabled section requires a non-empty explicit list of local `.ttl` paths; no globs or remote downloads. See [SHACL policies and RDF vocabulary](shacl.md).
+
+Legacy `mdx.yaml` remains supported with the equivalent `version`, `include`, `exclude`, `schemas`, and `validation.shacl.shapes` structure. Exactly one config may exist: having both `mdx.toml` and `mdx.yaml` is an operation error, with no merging or precedence. To migrate, translate the workspace config into TOML and remove `mdx.yaml`; document schemas and Markdown front matter remain YAML/JSON. Unknown configuration keys and versions are rejected.
 
 Paths are relative to the workspace and normalized to `/` in results. Directory symlinks are not followed, symlink files are not discovered. `.git`, `.mdx`, `target` and `node_modules` are always skipped. Includes/excludes use globset semantics, not `.gitignore` semantics. All included files require a schema. Multiple matching mappings are an error unless a document provides an explicit selector.
 
 A document's front-matter `$schema` takes precedence and resolves relative to that document. Schema files must be inside the canonical workspace root; remote selection is unsupported. The selector is a reserved engine field, removed only from the copy of metadata passed to JSON Schema validation. It remains available in the IR/index.
 
-Front matter must start at the first line with `---` and close with `---`. LF/CRLF are supported; no BOM or alternative delimiter contract. Values must form a mapping; duplicate YAML keys are errors. Metadata diagnostics currently highlight the **whole front matter**, with the validator's field detail in the message; they do not yet locate individual YAML scalar tokens.
+Front matter must start at the first line with `---` and close with `---`. LF/CRLF are supported; no BOM or alternative delimiter contract. Values must form a mapping; duplicate YAML keys are errors. Metadata diagnostics locate individual YAML tokens where the parser retains locations: front-matter JSON Schema errors and relation errors highlight the whole front matter, while `relation.cardinality` highlights the declared field and `relation.target` highlights the exact reference token (specific array item when unambiguous). YAML aliases keep their use-site token; collections highlight the key rather than a fabricated range; anything unlocatable falls back to the whole front matter. SHACL findings carry the same mapping via `shacl.sourceField`; see [`shacl.md`](shacl.md).
 
 ## Envelope
 
@@ -97,11 +106,15 @@ relations:
     mustExist: true
 ```
 
-A source field is a string or array of strings; missing field means zero entries. `min` defaults to 0, `max` is unbounded, `mustExist` defaults to true. Targets may be IDs (`FEATURE-0042` or `id:FEATURE-0042`), paths relative to the source document, and optional `#anchor` fragments. Typed relations narrow ID candidates by `targetType`; multiple candidates remain ambiguous. `mustExist: false` suppresses only missing-target errors, not wrong types, ambiguous references or invalid anchors. Body Markdown links/images are always checked independently; their edge kind is `link`.
+A source field is a string or array of strings; missing field means zero entries. `targetType` is optional; without it any document type is accepted. `min` defaults to 0, `max` is unbounded, `mustExist` defaults to true. Targets may be IDs (`FEATURE-0042` or `id:FEATURE-0042`), paths relative to the source document, and optional `#anchor` fragments. Typed relations narrow ID candidates by `targetType`; multiple candidates remain ambiguous. `mustExist: false` suppresses only missing-target errors, not wrong types, ambiguous references or invalid anchors. Body Markdown links/images are always checked independently; their edge kind is `link`.
 
 Reference statuses: `resolved`, `missing`, `ambiguous`, `wrong-type`, `missing-anchor`, `outside-workspace`, `invalid-encoding`. Files outside the workspace cannot be link targets. Existing non-Markdown assets without an anchor are accepted but not graph nodes. Markdown targets must be included documents. Links with URI schemes other than `id:` and protocol-relative links are skipped; external availability and URL safety are not validated. HTML `<a>`/custom anchors are not resolved. Logical ID paths are case-sensitive; filesystem lookup follows OS rules.
 
 Anchor policy: lowercase Unicode letters/numbers, preserve `_` and `-`, replace each whitespace with `-`, discard other characters. Resolve collisions by appending `-1`, `-2`, etc. until unused (including collisions with explicitly suffixed headings). This is an explicit PoC policy, not a guarantee of GitHub/GitLab slug parity. URL percent escapes are decoded before lookup.
+
+## Cross-document policies
+
+Cross-document policies use **SHACL**, not a custom YAML assertion DSL. Configure local Turtle shape files in `mdx.toml` under `[validation.shacl]`. The engine projects current documents and resolved references into an in-memory RDF graph, runs pinned Rudof SHACL Native validation, and translates results into Markdown diagnostics. See [SHACL policies](shacl.md) and the executable [design-invariants](../examples/use-cases/design-invariants) example. A `constraints` key in a document schema is not supported.
 
 ## Lint and diagnostics
 
@@ -113,4 +126,4 @@ lint:
 
 Both rules default to false; both emit **warnings**, separate from schema errors. Trailing-space lint is literal and can flag Markdown hard breaks and code lines; leave it off when those are intentional. No automatic fixes.
 
-Diagnostic fields: `path`, `span`, `rule`, `severity`, `message`. Rules are namespaced (`yaml.*`, `schema.*`, `body.*`, `identity.*`, `relation.*`, `link.*`, `lint.*`). Diagnostics are sorted deterministically. See [`contracts/v1.json`](contracts/v1.json) for offset and exit-code conventions.
+Diagnostic fields: `path`, `span`, `rule`, `severity`, `message`. Rules are namespaced (`yaml.*`, `schema.*`, `body.*`, `identity.*`, `relation.*`, `link.*`, `shacl.*`, `lint.*`). Diagnostics are sorted deterministically. See [`contracts/v1.json`](contracts/v1.json) for offset and exit-code conventions.

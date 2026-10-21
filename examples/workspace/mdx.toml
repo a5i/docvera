@@ -1,0 +1,8 @@
+version = 1
+include = ["docs/**/*.md"]
+exclude = []
+
+[schemas]
+"docs/adr-*.md" = "schemas/adr.yaml"
+"docs/feature-*.md" = "schemas/feature.yaml"
+"docs/test-*.md" = "schemas/test-plan.yaml"

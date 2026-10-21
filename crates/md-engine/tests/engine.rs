@@ -427,10 +427,10 @@ fn unknown_schema_fields_bad_regex_and_remote_refs_fail_closed() {
 #[test]
 fn init_is_non_destructive_and_preamble_is_explicit() {
     let dir = fixture();
-    let before = fs::read_to_string(dir.path().join("mdx.yaml")).unwrap();
+    let before = fs::read_to_string(dir.path().join("mdx.toml")).unwrap();
     assert!(md_engine::init(dir.path()).is_err());
     assert_eq!(
-        fs::read_to_string(dir.path().join("mdx.yaml")).unwrap(),
+        fs::read_to_string(dir.path().join("mdx.toml")).unwrap(),
         before
     );
     edit(

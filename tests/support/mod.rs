@@ -7,6 +7,7 @@ pub const SCENARIOS: &[(&str, usize)] = &[
     ("operational-readiness", 4),
     ("architecture-governance", 5),
     ("project-governance", 4),
+    ("design-invariants", 9),
 ];
 
 pub fn fixture(name: &str) -> TempDir {

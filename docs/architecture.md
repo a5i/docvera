@@ -3,13 +3,15 @@
 ## Shared core
 
 ```text
-Markdown + mdx.yaml + local schemas
+Markdown + mdx.toml + local schemas
                 |
       discover / parse / Document IR
                 |
       schema + lint + identity checks
                 |
       complete catalog / link resolution
+                |
+      RDF projection + SHACL Core/SPARQL
                 |
           CheckResult + graph
                 |
@@ -29,17 +31,19 @@ Markdown + mdx.yaml + local schemas
 
 The core deliberately remains one crate split into modules until contracts settle. It does not implement all eleven crates from the proposal. No database code is needed to run `check`.
 
+Workspace configuration is canonical `mdx.toml`; `mdx.yaml` is a fallback, never merged. `policy.rs` is the Rudof adapter: it loads local `.ttl` files, projects documents and resolved edges into an ephemeral RDF graph, and maps results into existing diagnostics. No parallel custom assertion DSL or YAML-to-SHACL compiler exists. `check` remains index-free; policy sources participate in the index invalidation fingerprint. Policy findings carry structured `shacl` report objects and YAML-parser source spans (RFC 6901 `sourceField` pointers) with conservative fallbacks; location extraction never changes YAML semantics. [SHACL semantics and limits](shacl.md) document the versioned URN vocabulary, provenance rules and tested subset.
+
 ## Deliberate changes from the design proposal
 
 1. **SQLite + FTS5 instead of DuckDB.** Bundled SQLite supplies JSON operators, transactions and BM25 without runtime extension downloads. The prototype exercises the complete local cycle before committing to DuckDB/FTS version integration. Query syntax is SQLite, not DuckDB. Storage/query/search functions are isolated in `index.rs`, but this is not yet a fully swappable backend trait.
 2. **pulldown-cmark instead of comrak.** CommonMark/GFM event parsing provides source byte ranges, tables and fenced-code handling. The IR stores selected block nodes rather than a complete serializable AST.
 3. **BFS graph traversal instead of recursive SQL.** Cycle-safe traversal handles incoming/outgoing references up to depth 32; output includes discovered nodes/edges, not all possible paths or dedicated cycle reports. The small graph is loaded into memory.
-4. **Coarse validation, incremental writes.** Every `check`/`index` rescans and reparses selected files and validates all dependencies. Only changed source hashes are rewritten in the content/FTS index when the schema fingerprint is unchanged. Relations/diagnostics are replaced on every indexing batch. Schema/config/version changes invalidate all documents; the current fingerprint also depends on selected schema occurrences, so adding/deleting documents can force a wider refresh. This trades speed for correct inbound-reference invalidation in a small PoC.
+4. **Coarse validation, incremental writes.** Every `check`/`index` rescans and reparses selected files and validates all dependencies. Only changed source hashes are rewritten in the content/FTS index when the schema fingerprint is unchanged. Relations/diagnostics are replaced on every indexing batch. Schema/config/SHACL-policy/version changes invalidate all documents; the current fingerprint also depends on selected schema occurrences, so adding/deleting documents can force a wider refresh. This trades speed for correct inbound-reference invalidation in a small PoC.
 5. **Local native package, not published prebuild infrastructure.** CI creates one npm archive per runner with its native binary. There is no hosted release, npm publication, automatic optional-platform package selection, or supported Windows arm64 target yet. Consumers can use the artifact matching their platform or build locally. Linux artifacts depend on the runner's libc baseline; Alpine/musl is not covered.
 
 ## Index and snapshots
 
-Derived index: `.mdx/index.sqlite3`; disposable, excluded from Git. Tables: `documents`, `sections`, `nodes`, `relations`, `diagnostics`; private FTS and engine metadata tables are not exposed through arbitrary user SQL.
+Derived index: `.mdx/index.sqlite3`; disposable, excluded from Git. Tables: `documents`, `sections`, `nodes`, `relations`, `diagnostics` (structured `shacl` JSON column on policy findings, nullable, additive migration); private FTS and engine metadata tables are not exposed through arbitrary user SQL.
 
 Document internal IDs are normalized relative paths; declared IDs can collide. Section IDs are `path#generated-anchor`, stable across content edits but not heading renames/reordering of duplicates. Section spans cover nested descendants; searchable `text` contains **direct content only** to avoid duplicating descendant hits. Title and heading fields are weighted 3 and 2 relative to body 1. Code remains part of raw searchable body; there is not yet a separate code-only field. Files with no headings produce no searchable section rows. Selected-metadata exposure controls are not implemented.
 
@@ -54,13 +58,14 @@ Queries/search/extract use read-only connections and the last explicit successfu
 - User SQL runs on a read-only connection with a deny-by-default authorizer. Only public tables, SELECT/recursive query actions and an explicit function allowlist are admitted. No attach/detach, pragmas, extensions or arbitrary filesystem functions.
 - A VM progress handler interrupts queries after roughly two seconds; at most 1,000 output rows are returned. Large SQL strings, intermediate values, permitted function results and source files are **not memory-bounded**. This is not an OS-isolated sandbox for hostile workloads.
 - Parse/config/filesystem failures become either document diagnostics or operation errors. Included-file read failures stop the operation instead of pretending the file was deleted.
+- SHACL policies are workspace-trusted, local-only inputs, not a sandbox. Imports and SPARQL SERVICE/FROM clauses are rejected conservatively; resource limits/process isolation and performance baselines remain future work.
 - No network access, external URL checks, arbitrary structure auto-fixing, or remote crawling.
 
 ## Contracts and remaining work
 
 Every successful result envelope has `contractVersion: 1`. Check results are typed Rust structs; query/search/graph/extract currently use JSON values with parity tests. The TypeScript facade interfaces and the command descriptor are **hand-maintained**, not generated from Rust schema types. Migrating all dynamic results to Rust structs and generating schemas/declarations is a next hardening step.
 
-The prototype covers the breadth of PoC stages A–F, but not every proposed extension. Deferred: body `$ref`/alternatives, arbitrary cross-field/cross-document assertion language, reciprocal relation constraints, query-exposure settings, full GFM AST persistence, semantic empty-section analysis, advanced block/table schemas, dedicated cycle/path query APIs, multilingual stemming, code-specific ranking, combined search/graph query endpoint, watch mode, external URL checks, CSV/table output, hosted schema registry, and automatic npm prebuild distribution.
+The prototype covers the breadth of PoC stages A–F, but not every proposed extension. Deferred: body `$ref`/alternatives, full SHACL conformance, SHACL resource isolation and benchmarks, general completeness/freshness states, transition validation, query-exposure settings, full GFM AST persistence, semantic empty-section analysis, advanced block/table schemas, dedicated cycle/path query APIs, multilingual stemming, code-specific ranking, combined search/graph query endpoint, watch mode, external URL checks, CSV/table output, hosted schema registry, and automatic npm prebuild distribution.
 
 ## Verification
 

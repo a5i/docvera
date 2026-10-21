@@ -41,7 +41,7 @@ pub struct Identity {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct RelationRule {
     pub from: String,
-    pub target_type: String,
+    pub target_type: Option<String>,
     #[serde(default = "yes")]
     pub must_exist: bool,
     #[serde(default)]
