@@ -62,7 +62,10 @@ pub fn init(root: &Path) -> Result<Vec<String>> {
     fs::create_dir_all(root)?;
     let canonical_root = root.canonicalize()?;
     let mut created = vec![];
-    for (relative, text) in EXAMPLE_FILES {
+    // The config gate is written last: an init that fails partway (for
+    // example on a blocker where a directory is expected) leaves no mdx.toml
+    // behind and can simply be retried once the blocker is removed.
+    for (relative, text) in EXAMPLE_FILES.iter().rev() {
         let path = root.join(relative);
         let parent = path.parent().unwrap();
         fs::create_dir_all(parent)
@@ -72,5 +75,6 @@ pub fn init(root: &Path) -> Result<Vec<String>> {
         file.write_all(text.as_bytes())?;
         created.push(relative.to_string());
     }
+    created.reverse();
     Ok(created)
 }

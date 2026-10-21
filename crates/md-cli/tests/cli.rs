@@ -163,3 +163,33 @@ fn warnings_as_errors_is_an_explicit_gate() {
     assert_eq!(result["diagnostics"][0]["severity"], "warning");
     json(root, &["check", "--warnings-as-errors"], 1);
 }
+
+#[test]
+fn failed_init_leaves_no_config_and_can_be_retried() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    fs::write(root.join("docs"), "not a directory").unwrap();
+    assert_eq!(
+        json(root, &["init"], 2)["error"]["code"],
+        "operation_failed"
+    );
+    fs::remove_file(root.join("docs")).unwrap();
+    let created = json(root, &["init"], 0)["created"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap().to_owned())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        created,
+        [
+            "mdx.toml",
+            "schemas/adr.yaml",
+            "schemas/feature.yaml",
+            "schemas/test-plan.yaml",
+            "docs/adr-0001.md",
+            "docs/feature-0042.md",
+            "docs/test-0001.md",
+        ]
+    );
+}
