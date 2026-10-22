@@ -11,4 +11,10 @@
 ignore = [
     "RUSTSEC-2026-0194",
     "RUSTSEC-2026-0195",
+    # Accepted maintenance-only advisories: GlueSQL 0.20 -> im -> bitmaps /
+    # sized-chunks. No patched versions; revisit when GlueSQL drops this chain.
+    # Keep these targeted exceptions aligned with deny.toml, without a fork.
+    "RUSTSEC-2026-0247",
+    "RUSTSEC-2026-0248",
+    "RUSTSEC-2026-0251",
 ]

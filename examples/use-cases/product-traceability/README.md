@@ -9,7 +9,6 @@ From the repository root after building `docvera`:
 ```sh
 root=examples/use-cases/product-traceability
 target/debug/docvera --root "$root" check
-target/debug/docvera --root "$root" index
 target/debug/docvera --root "$root" query sql "$(cat "$root/queries/missing-epics.sql")" --format json
 target/debug/docvera --root "$root" query sql "$(cat "$root/queries/orphan-requirements.sql")" --format json
 ```
@@ -18,9 +17,9 @@ Expected: 6 documents, no diagnostics, both reports have `rows: []`.
 
 ## Try changes in a copy
 
-- Change `docs/feature-draft.md` from `draft` to `planned`, then index:
+- Change `docs/feature-draft.md` from `draft` to `planned` and re-run the query:
   `missing-epics` returns `[{"feature":"FEAT-002"}]`. `check` still passes.
-- Delete both feature documents, then index: `orphan-requirements` returns
+- Delete both feature documents and re-run the query: `orphan-requirements` returns
   `[{"requirement":"REQ-001"}]`; the remaining documents still validate.
 - Remove the feature owner, rename `Problem`, remove its requirement references,
   or point its initiative at `REQ-001`: `check` fails.

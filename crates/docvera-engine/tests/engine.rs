@@ -1,14 +1,12 @@
-#![cfg(feature = "index")]
-#[path = "../../../tests/support/text.rs"]
-mod fixture_text;
+#![cfg(feature = "sql")]
 use docvera_engine::{
-    Workspace,
-    index::{self, SearchOptions},
-    parser,
+    Workspace, parser,
     schema::{Compiled, Schema},
 };
+#[path = "../../../tests/support/text.rs"]
+mod fixture_text;
 use fixture_text::edit;
-use serde_json::{Value, json};
+use serde_json::json;
 use std::{fs, path::Path};
 use tempfile::TempDir;
 
@@ -29,49 +27,36 @@ fn rules(root: &Path) -> Vec<String> {
 fn has(root: &Path, rule: &str) {
     assert!(rules(root).contains(&rule.to_owned()), "Expected {rule}");
 }
-fn search(root: &Path, text: &str) -> Value {
-    index::search(
-        root,
-        &SearchOptions {
-            text: text.into(),
-            ..Default::default()
-        },
-    )
-    .unwrap()
-}
 
 #[test]
-fn full_lifecycle_query_graph_search_and_extraction() {
+fn full_lifecycle_query_graph_and_extraction() {
     let dir = fixture();
     let root = dir.path();
     let ws = Workspace::load(root).unwrap();
     assert!(ws.check().valid());
     assert_eq!(ws.documents.len(), 3);
-    assert_eq!(index::index(&ws, false).unwrap().updated, 3);
-    assert_eq!(index::index(&ws, false).unwrap().updated, 0);
-    let rows = index::query(
-        root,
-        "SELECT declared_id,metadata->>'status' AS status FROM documents WHERE type='adr'",
-    )
-    .unwrap();
+    let rows = ws
+        .query_sql(
+            "SELECT declared_id, metadata['status'] AS status FROM documents WHERE type='adr'",
+        )
+        .unwrap();
     assert_eq!(rows["rows"][0]["status"], "accepted");
-    let graph = index::graph(root, "FEATURE-0042", "incoming", 2).unwrap();
+    let graph = ws.graph("FEATURE-0042", "incoming", 2).unwrap();
     assert_eq!(graph["nodes"].as_array().unwrap().len(), 3);
-    let hits = index::search(
-        root,
-        &SearchOptions {
-            text: "OAuth".into(),
-            document_type: Some("feature".into()),
-            section: Some("Security".into()),
-            limit: None,
-        },
-    )
-    .unwrap();
-    assert_eq!(hits["results"].as_array().unwrap().len(), 1);
-    let hit = &hits["results"][0];
-    assert!(hit["score"].as_f64().unwrap() > 0.0);
-    assert_eq!(hit["location"]["line"], 22);
-    let extracted = index::extract(root, hit["sectionId"].as_str().unwrap()).unwrap();
+    let extracted = ws
+        .extract("docs/feature-0042.md/security")
+        .or_else(|_| {
+            // Section IDs are stable hashes; find the Security section by query instead.
+            let sections = ws
+                .query_sql("SELECT section_id FROM sections WHERE heading = 'Security'")
+                .unwrap();
+            let id = sections["rows"][0]["section_id"]
+                .as_str()
+                .unwrap()
+                .to_owned();
+            ws.extract(&id)
+        })
+        .unwrap();
     assert!(
         extracted["markdown"]
             .as_str()
@@ -82,30 +67,18 @@ fn full_lifecycle_query_graph_search_and_extraction() {
 
     edit(root, "docs/feature-0042.md", "OAuth", "OpenID");
     let ws = Workspace::load(root).unwrap();
-    assert_eq!(index::index(&ws, false).unwrap().updated, 1);
-    assert_eq!(
-        search(root, "OpenID")["results"].as_array().unwrap().len(),
-        1
-    );
-    assert!(
-        search(root, "OAuth")["results"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .all(|h| h["documentId"] != "FEATURE-0042")
-    );
+    let sections = ws
+        .query_sql("SELECT section_id FROM sections WHERE heading = 'Security'")
+        .unwrap();
+    let id = sections["rows"][0]["section_id"].as_str().unwrap();
+    let security = ws.extract(id).unwrap();
+    let markdown = security["markdown"].as_str().unwrap();
+    assert!(markdown.contains("OpenID") && !markdown.contains("OAuth"));
     fs::remove_file(root.join("docs/feature-0042.md")).unwrap();
     let ws = Workspace::load(root).unwrap();
     assert!(!ws.check().valid());
-    assert_eq!(index::index(&ws, false).unwrap().deleted, 1);
-    assert!(
-        search(root, "OpenID")["results"]
-            .as_array()
-            .unwrap()
-            .is_empty()
-    );
     assert_eq!(
-        index::query(root, "SELECT count(*) AS n FROM documents").unwrap()["rows"][0]["n"],
+        ws.query_sql("SELECT count(*) AS n FROM documents").unwrap()["rows"][0]["n"],
         2
     );
     assert!(ws.relations.iter().any(|r| r.status == "missing"));
@@ -217,7 +190,7 @@ fn malformed_yaml_and_duplicate_keys_are_diagnostics() {
 }
 
 #[test]
-fn duplicates_remain_indexable_and_references_become_ambiguous() {
+fn duplicates_remain_queryable_and_references_become_ambiguous() {
     let dir = fixture();
     let root = dir.path();
     fs::copy(
@@ -235,12 +208,11 @@ fn duplicates_remain_indexable_and_references_become_ambiguous() {
         2
     );
     assert!(ws.relations.iter().any(|r| r.status == "ambiguous"));
-    index::index(&ws, false).unwrap();
     assert_eq!(
-        index::query(root, "SELECT count(*) AS n FROM documents").unwrap()["rows"][0]["n"],
+        ws.query_sql("SELECT count(*) AS n FROM documents").unwrap()["rows"][0]["n"],
         4
     );
-    assert!(index::graph(root, "FEATURE-0042", "incoming", 1).is_err());
+    assert!(ws.graph("FEATURE-0042", "incoming", 1).is_err());
 }
 
 #[test]
@@ -279,10 +251,15 @@ fn broken_anchor_wrong_type_missing_path_and_relation_cardinality() {
 }
 
 #[test]
-fn schema_changes_invalidate_unchanged_documents() {
+fn schema_type_changes_are_visible_in_queries() {
     let dir = fixture();
     let root = dir.path();
-    index::index(&Workspace::load(root).unwrap(), false).unwrap();
+    let ws = Workspace::load(root).unwrap();
+    assert_eq!(
+        ws.query_sql("SELECT type FROM documents WHERE declared_id='ADR-0001'")
+            .unwrap()["rows"][0]["type"],
+        "adr"
+    );
     edit(
         root,
         "schemas/adr.yaml",
@@ -290,13 +267,9 @@ fn schema_changes_invalidate_unchanged_documents() {
         "documentType: decision",
     );
     let ws = Workspace::load(root).unwrap();
-    assert!(index::index(&ws, false).unwrap().updated > 0);
     assert_eq!(
-        index::query(
-            root,
-            "SELECT type FROM documents WHERE declared_id='ADR-0001'"
-        )
-        .unwrap()["rows"][0]["type"],
+        ws.query_sql("SELECT type FROM documents WHERE declared_id='ADR-0001'")
+            .unwrap()["rows"][0]["type"],
         "decision"
     );
 }
@@ -327,28 +300,25 @@ fn lint_warnings_are_separate_from_schema_errors() {
 }
 
 #[test]
-fn sql_rejects_mutation_file_access_extensions_and_unbounded_results() {
+fn sql_rejects_writes_multiple_statements_and_unbounded_results() {
     let dir = fixture();
-    let root = dir.path();
-    index::index(&Workspace::load(root).unwrap(), false).unwrap();
+    let ws = Workspace::load(dir.path()).unwrap();
     for sql in [
         "DELETE FROM documents",
         "DROP TABLE documents",
-        "PRAGMA user_version=99",
-        "ATTACH DATABASE ':memory:' AS other",
-        "SELECT load_extension('evil')",
-        "SELECT readfile('/etc/passwd')",
-        "SELECT * FROM sqlite_master",
-        "SELECT randomblob(1000000000)",
-        "WITH RECURSIVE n(x) AS (VALUES(1) UNION ALL SELECT x+1 FROM n WHERE x<1002) SELECT x FROM n",
+        "UPDATE documents SET path = 'x'",
+        "INSERT INTO documents (path) VALUES ('x')",
+        "CREATE TABLE x (id INT)",
+        "SELECT 1; SELECT 2",
+        "BEGIN",
+        "SELECT * FROM missing",
+        "SELECT path AS x, source AS x FROM documents",
+        "WITH RECURSIVE n(x) AS (VALUES(1) UNION ALL SELECT x+1 FROM n) SELECT x FROM n",
     ] {
-        assert!(
-            index::query(root, sql).is_err(),
-            "Unsafe query accepted: {sql}"
-        );
+        assert!(ws.query_sql(sql).is_err(), "Unsafe query accepted: {sql}");
     }
     assert_eq!(
-        index::query(root, "SELECT count(*) AS n FROM documents").unwrap()["rows"][0]["n"],
+        ws.query_sql("SELECT count(*) AS n FROM documents").unwrap()["rows"][0]["n"],
         3
     );
 }
@@ -362,12 +332,12 @@ fn cycles_terminate_and_depth_is_bounded() {
         "Read, validate and search Markdown without a server.",
         "Read, validate and search Markdown without a server. [ADR](id:ADR-0001)",
     );
-    index::index(&Workspace::load(dir.path()).unwrap(), false).unwrap();
-    let graph = index::graph(dir.path(), "ADR-0001", "outgoing", 32).unwrap();
+    let ws = Workspace::load(dir.path()).unwrap();
+    let graph = ws.graph("ADR-0001", "outgoing", 32).unwrap();
     assert_eq!(graph["nodes"].as_array().unwrap().len(), 2);
-    assert!(index::graph(dir.path(), "ADR-0001", "outgoing", 33).is_err());
+    assert!(ws.graph("ADR-0001", "outgoing", 33).is_err());
     assert_eq!(
-        index::graph(dir.path(), "ADR-0001", "incoming", 0).unwrap()["edges"],
+        ws.graph("ADR-0001", "incoming", 0).unwrap()["edges"],
         json!([])
     );
 }
@@ -480,23 +450,6 @@ fn explicit_id_never_falls_back_to_a_file_path() {
 
 #[cfg(unix)]
 #[test]
-fn index_file_symlink_cannot_escape_workspace() {
-    use std::os::unix::fs::symlink;
-    let dir = fixture();
-    let outside = fixture();
-    index::index(&Workspace::load(outside.path()).unwrap(), false).unwrap();
-    fs::create_dir(dir.path().join(".docvera")).unwrap();
-    symlink(
-        outside.path().join(".docvera/index.sqlite3"),
-        dir.path().join(".docvera/index.sqlite3"),
-    )
-    .unwrap();
-    assert!(index::index(&Workspace::load(dir.path()).unwrap(), false).is_err());
-    assert!(index::query(dir.path(), "SELECT count(*) AS n FROM documents").is_err());
-}
-
-#[cfg(unix)]
-#[test]
 fn symlinks_cannot_escape_workspace() {
     use std::os::unix::fs::symlink;
     let dir = fixture();
@@ -508,8 +461,15 @@ fn symlinks_cannot_escape_workspace() {
     )
     .unwrap();
     has(dir.path(), "schema.resolve");
-    symlink(outside.path(), dir.path().join(".docvera")).unwrap();
-    assert!(index::index(&Workspace::load(dir.path()).unwrap(), false).is_err());
+    // A symlink resolving outside the workspace is recorded as an outside asset,
+    // not silently treated as workspace content.
+    let ws = Workspace::load(dir.path()).unwrap();
+    assert!(
+        ws.check()
+            .diagnostics
+            .iter()
+            .any(|d| d.rule == "schema.resolve")
+    );
 }
 
 #[test]
@@ -540,31 +500,6 @@ fn non_utf8_schema_error_names_the_schema_file() {
         diagnostic.message.contains("adr.yaml"),
         "expected schema path in message, got: {}",
         diagnostic.message
-    );
-}
-
-#[test]
-fn corrupt_index_span_fails_closed_instead_of_panicking() {
-    let dir = fixture();
-    let root = dir.path();
-    index::index(&Workspace::load(root).unwrap(), false).unwrap();
-    let conn = rusqlite::Connection::open(root.join(".docvera/index.sqlite3")).unwrap();
-    let section_id: String = conn
-        .query_row("SELECT section_id FROM sections LIMIT 1", [], |r| r.get(0))
-        .unwrap();
-    conn.execute(
-        "UPDATE sections SET span=?1 WHERE section_id=?2",
-        rusqlite::params![
-            r#"{"start":999999,"end":9999999,"line":1,"column":1,"endLine":1,"endColumn":1}"#,
-            section_id
-        ],
-    )
-    .unwrap();
-    drop(conn);
-    let error = index::extract(root, &section_id).unwrap_err();
-    assert!(
-        format!("{error:#}").contains("rebuild"),
-        "expected rebuild hint, got: {error:#}"
     );
 }
 

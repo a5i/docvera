@@ -19,6 +19,13 @@ ignore = [
     # from this repo. Revisit on the next rudof upgrade.
     { id = "RUSTSEC-2024-0436", reason = "paste unmaintained; transitive via rudof_rdf, upstream must drop it" },
     { id = "RUSTSEC-2026-0173", reason = "proc-macro-error2 unmaintained; transitive via tabled -> rudof_rdf" },
+    # GlueSQL 0.20 uses im for uniqueness validation; im pulls in bitmaps and
+    # sized-chunks. These are maintenance advisories with no patched versions.
+    # Accept upstream dependencies rather than maintaining a Docvera fork.
+    # Revisit on each GlueSQL upgrade; remove when upstream drops this chain.
+    { id = "RUSTSEC-2026-0247", reason = "bitmaps unmaintained; transitive via im -> gluesql-core 0.20; no patched release, revisit on GlueSQL upgrade" },
+    { id = "RUSTSEC-2026-0248", reason = "im unmaintained; required by gluesql-core 0.20; no patched release, revisit on GlueSQL upgrade" },
+    { id = "RUSTSEC-2026-0251", reason = "sized-chunks unmaintained; transitive via im -> gluesql-core 0.20; no patched release, revisit on GlueSQL upgrade" },
 ]
 
 [licenses]

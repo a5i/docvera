@@ -129,7 +129,7 @@ See the executable [design-invariants workspace](../../../examples/use-cases/des
 - The focus document maps back to its Markdown path. A focus node that cannot be mapped to a document is an operation error, never a discarded violation.
 - `sh:Violation` → `error`, `sh:Warning` → `warning`, `sh:Info` → `info`. Other severities conservatively map to `error`.
 - Exit 1: error diagnostics, including incomplete duplicate-ID projections. Warnings fail only with `--warnings-as-errors`; info does not. Policy load/compile/execution failures exit 2 and reject Node operations.
-- Diagnostics are deterministically sorted. Structured `shacl` payloads persist to the SQL `diagnostics.shacl` column (JSON, nullable; additive column migration for existing indexes), so reports can be queried with `json_extract`. Shape sources participate in the index fingerprint, so changing a policy invalidates indexed document validation even if Markdown is unchanged. SQL persists derived diagnostics; it does not define normative validation.
+- Diagnostics are deterministically sorted. Structured `shacl` payloads appear in the SQL `diagnostics.shacl` column as a structured MAP value, so reports can query `shacl['focusNode']['value']` and friends. Shape sources participate in the workspace fingerprint, so changing a policy changes validation on the next check. SQL projects derived diagnostics; it does not define normative validation.
 
 ## Limits and trust boundary
 

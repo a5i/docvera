@@ -1,0 +1,17 @@
+{
+  "name": "docvera-wasm-build-tools",
+  "private": true,
+  "scripts": {
+    "build": "npm run build:node && npm run build:web",
+    "build:node": "wasm-pack build --target nodejs --release --out-dir pkg-node --no-opt -- --locked",
+    "build:web": "wasm-pack build --target web --release --out-dir pkg-web --no-opt -- --locked",
+    "test": "node test/node.cjs",
+    "test:browser": "node test/browser.cjs",
+    "test:all": "npm run build && npm test && npm run test:browser"
+  },
+  "devDependencies": {
+    "playwright": "1.64.1",
+    "wasm-pack": "0.15.0",
+    "typescript": "5.9.3"
+  }
+}

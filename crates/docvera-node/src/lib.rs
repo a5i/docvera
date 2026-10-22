@@ -1,70 +1,33 @@
-use docvera_engine::{Workspace, index};
+use docvera_engine::{CheckerContext, sql::SqlSnapshot};
 use napi_derive::napi;
 use serde_json::Value;
-use std::path::PathBuf;
+use std::{
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
 
-async fn blocking<F>(job: F) -> napi::Result<Value>
-where
-    F: FnOnce() -> anyhow::Result<Value> + Send + 'static,
-{
+fn failure(error: impl std::fmt::Display) -> napi::Error {
+    napi::Error::from_reason(error.to_string())
+}
+async fn blocking<T: Send + 'static>(
+    job: impl FnOnce() -> anyhow::Result<T> + Send + 'static,
+) -> napi::Result<T> {
     tokio::task::spawn_blocking(job)
         .await
-        .map_err(|e| napi::Error::from_reason(e.to_string()))?
-        .map_err(|e| napi::Error::from_reason(format!("{e:#}")))
+        .map_err(failure)?
+        .map_err(|e| failure(format!("{e:#}")))
 }
 
-#[napi]
-pub async fn check(root: String) -> napi::Result<Value> {
-    blocking(move || {
-        Ok(serde_json::to_value(
-            Workspace::load(&PathBuf::from(root))?.check(),
-        )?)
-    })
-    .await
-}
-#[napi]
-pub async fn index(root: String, rebuild: bool) -> napi::Result<Value> {
-    blocking(move || {
-        Ok(serde_json::to_value(index::index(
-            &Workspace::load(&PathBuf::from(root))?,
-            rebuild,
-        )?)?)
-    })
-    .await
-}
-#[napi]
-pub async fn query_sql(root: String, sql: String) -> napi::Result<Value> {
-    blocking(move || index::query(&PathBuf::from(root), &sql)).await
-}
-#[napi]
-pub async fn references(
-    root: String,
-    id: String,
-    direction: String,
-    depth: u32,
-) -> napi::Result<Value> {
-    blocking(move || index::graph(&PathBuf::from(root), &id, &direction, depth as usize)).await
-}
-#[napi]
-pub async fn search(root: String, options: Value) -> napi::Result<Value> {
-    blocking(move || index::search(&PathBuf::from(root), &serde_json::from_value(options)?)).await
-}
-#[napi]
-pub async fn extract(root: String, section_id: String) -> napi::Result<Value> {
-    blocking(move || index::extract(&PathBuf::from(root), &section_id)).await
-}
-
-/// Long-lived, serialized checker snapshot. No Markdown/config/schema reads during checks.
+/// An explicitly owned in-memory baseline. No disk reads after construction.
 #[napi]
 pub struct NativeChecker {
-    inner: std::sync::Arc<std::sync::Mutex<Option<docvera_engine::CheckerContext>>>,
+    inner: Arc<Mutex<Option<CheckerContext>>>,
 }
-
 impl NativeChecker {
-    async fn run<F>(&self, job: F) -> napi::Result<Value>
-    where
-        F: FnOnce(&mut docvera_engine::CheckerContext) -> anyhow::Result<Value> + Send + 'static,
-    {
+    async fn run<T: Send + 'static>(
+        &self,
+        job: impl FnOnce(&mut CheckerContext) -> anyhow::Result<T> + Send + 'static,
+    ) -> napi::Result<T> {
         let inner = self.inner.clone();
         blocking(move || {
             let mut guard = inner
@@ -77,73 +40,110 @@ impl NativeChecker {
         .await
     }
 }
-
 #[napi]
 impl NativeChecker {
     #[napi(factory)]
     pub async fn open(root: String) -> napi::Result<Self> {
-        let context = tokio::task::spawn_blocking(move || {
-            docvera_engine::CheckerContext::load(&PathBuf::from(root))
-        })
-        .await
-        .map_err(|e| napi::Error::from_reason(e.to_string()))?
-        .map_err(|e| napi::Error::from_reason(format!("{e:#}")))?;
+        let context = blocking(move || CheckerContext::load(&PathBuf::from(root))).await?;
         Ok(Self {
-            inner: std::sync::Arc::new(std::sync::Mutex::new(Some(context))),
+            inner: Arc::new(Mutex::new(Some(context))),
+        })
+    }
+    #[napi(factory)]
+    pub async fn from_sources(config: Value, sources: Value) -> napi::Result<Self> {
+        let context = blocking(move || {
+            CheckerContext::from_sources(
+                serde_json::from_value(config)?,
+                serde_json::from_value(sources)?,
+            )
+        })
+        .await?;
+        Ok(Self {
+            inner: Arc::new(Mutex::new(Some(context))),
         })
     }
     #[napi]
     pub async fn check(&self) -> napi::Result<Value> {
-        self.run(|context| Ok(serde_json::to_value(context.check()?)?))
-            .await
+        self.run(|c| Ok(serde_json::to_value(c.check()?)?)).await
     }
     #[napi]
     pub async fn check_document(&self, path: String, text: String) -> napi::Result<Value> {
-        self.run(move |context| Ok(serde_json::to_value(context.check_document(&path, &text)?)?))
+        self.run(move |c| Ok(serde_json::to_value(c.check_document(&path, &text)?)?))
             .await
     }
     #[napi]
     pub async fn check_with_text(&self, path: String, text: String) -> napi::Result<Value> {
-        self.run(move |context| {
-            Ok(serde_json::to_value(
-                context.check_with_text(&path, &text)?,
-            )?)
+        self.run(move |c| Ok(serde_json::to_value(c.check_with_text(&path, &text)?)?))
+            .await
+    }
+    #[napi]
+    pub async fn update_document(&self, path: String, text: String) -> napi::Result<()> {
+        self.run(move |c| c.update_document(&path, text)).await
+    }
+    #[napi]
+    pub async fn update_schema(&self, path: String, text: String) -> napi::Result<()> {
+        self.run(move |c| c.update_schema(&path, text)).await
+    }
+    #[napi]
+    pub async fn remove_document(&self, path: String) -> napi::Result<()> {
+        self.run(move |c| c.remove_document(&path)).await
+    }
+    #[napi]
+    pub async fn query_sql(&self, sql: String) -> napi::Result<Value> {
+        self.run(move |c| c.snapshot()?.query_sql(&sql)).await
+    }
+    #[napi]
+    pub async fn references(
+        &self,
+        id: String,
+        direction: String,
+        depth: u32,
+    ) -> napi::Result<Value> {
+        self.run(move |c| c.snapshot()?.graph(&id, &direction, depth as usize))
+            .await
+    }
+    #[napi]
+    pub async fn extract(&self, section_id: String) -> napi::Result<Value> {
+        self.run(move |c| c.snapshot()?.extract(&section_id)).await
+    }
+    #[napi]
+    pub async fn sql_snapshot(&self) -> napi::Result<NativeSqlSnapshot> {
+        let snapshot = self
+            .run(|c| SqlSnapshot::from_workspace(&c.snapshot()?))
+            .await?;
+        Ok(NativeSqlSnapshot {
+            inner: Arc::new(Mutex::new(Some(snapshot))),
+        })
+    }
+    #[napi]
+    pub fn close(&self) -> napi::Result<()> {
+        self.inner.lock().map_err(failure)?.take();
+        Ok(())
+    }
+}
+
+#[napi]
+pub struct NativeSqlSnapshot {
+    inner: Arc<Mutex<Option<SqlSnapshot>>>,
+}
+#[napi]
+impl NativeSqlSnapshot {
+    #[napi]
+    pub async fn query_sql(&self, sql: String) -> napi::Result<Value> {
+        let inner = self.inner.clone();
+        blocking(move || {
+            inner
+                .lock()
+                .map_err(|_| anyhow::anyhow!("SQL snapshot lock poisoned"))?
+                .as_mut()
+                .ok_or_else(|| anyhow::anyhow!("SQL snapshot is closed"))?
+                .query(&sql)
         })
         .await
     }
     #[napi]
-    pub async fn update_schema(&self, path: String, text: String) -> napi::Result<()> {
-        self.run(move |context| {
-            context.update_schema(&path, text)?;
-            Ok(Value::Null)
-        })
-        .await?;
-        Ok(())
-    }
-    #[napi]
-    pub async fn update_document(&self, path: String, text: String) -> napi::Result<()> {
-        self.run(move |context| {
-            context.update_document(&path, text)?;
-            Ok(Value::Null)
-        })
-        .await?;
-        Ok(())
-    }
-    #[napi]
-    pub async fn remove_document(&self, path: String) -> napi::Result<()> {
-        self.run(move |context| {
-            context.remove_document(&path)?;
-            Ok(Value::Null)
-        })
-        .await?;
-        Ok(())
-    }
-    #[napi]
     pub fn close(&self) -> napi::Result<()> {
-        self.inner
-            .lock()
-            .map_err(|_| napi::Error::from_reason("Checker lock poisoned"))?
-            .take();
+        self.inner.lock().map_err(failure)?.take();
         Ok(())
     }
 }

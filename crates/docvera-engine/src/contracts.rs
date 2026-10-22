@@ -41,11 +41,6 @@ pub fn diagnostic_schema() -> Schema {
     generate::<Diagnostic>("diagnostic", CONTRACT_VERSION, true)
 }
 
-#[cfg(feature = "index")]
-pub fn index_result_schema() -> Schema {
-    generate::<crate::index::IndexResult>("index-result", CONTRACT_VERSION, true)
-}
-
 /// Only contracts backed by Rust types are included; dynamic SQL/retrieval results
 /// and CLI command descriptions are not inferred from example values.
 pub fn json_schemas() -> BTreeMap<&'static str, Schema> {
@@ -54,7 +49,5 @@ pub fn json_schemas() -> BTreeMap<&'static str, Schema> {
         ("document", document_schema()),
         ("check-result", check_result_schema()),
         ("diagnostic", diagnostic_schema()),
-        #[cfg(feature = "index")]
-        ("index-result", index_result_schema()),
     ])
 }

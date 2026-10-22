@@ -62,7 +62,7 @@ aggregation and external snapshot TTL checks remain follow-up examples.
 
 Rust engine and CLI tests copy these directories into temporary workspaces using
 `tests/support/mod.rs`; native Node tests copy the same tracked files. Developer
-`.docvera` indexes are excluded. Tests cover all SQL files, exact baseline rows,
+Tests cover all SQL files, exact baseline rows,
 positive violation cases, schema errors, edits/deletions, indexed-snapshot semantics,
 search/extraction, graph traversal and CLI/native parity.
 

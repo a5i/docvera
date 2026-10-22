@@ -10,11 +10,10 @@ From the repository root after building `docvera`:
 ```sh
 root=examples/use-cases/operational-readiness
 target/debug/docvera --root "$root" check
-target/debug/docvera --root "$root" index
 for report in missing-operational-docs missing-slos overdue-reviews; do
   target/debug/docvera --root "$root" query sql "$(cat "$root/queries/$report.sql")" --format json
 done
-target/debug/docvera --root "$root" search "database connection timeout" --type runbook --section Diagnosis --format json
+target/debug/docvera --root "$root" query sql "SELECT s.section_id FROM sections s JOIN documents d ON d.path = s.document_id WHERE d.declared_id = 'RUN-001' AND s.heading = 'Diagnosis'" --format json
 target/debug/docvera --root "$root" extract 'docs/runbook.md#diagnosis' --format json
 ```
 
@@ -24,17 +23,16 @@ Search finds one Diagnosis section belonging to RUN-001; extract returns its ori
 ## Try changes in a copy
 
 - Remove `runbook: RUN-001`: `check` passes but missing-operational-docs returns
-  `[{"service":"SVC-001"}]` after indexing. Removing deployment has the same effect.
+  `[{"service":"SVC-001"}]` in the SQL report. Removing deployment has the same effect.
 - Remove `slo: SLO-001`: missing-slos returns `[{"service":"SVC-001"}]`.
 - Set reviewedAt to `'2026-09-19'`: overdue-reviews returns
   `[{"runbook":"RUN-001","reviewed_at":"2026-09-19"}]`.
 - Remove oncall: production service validation fails; changing lifecycle to
   development makes oncall optional.
 - Rename Diagnosis, point runbook at SLO-001 or delete the runbook: `check` fails.
-- Change the timeout phrase and reindex: the original phrase no longer matches.
 
 Review evaluation is fixed at 2026-10-20, with a 30-day window and strict cutoff
 `reviewedAt < 2026-09-20`. Dates use quoted ISO strings; the schema checks their
 shape, not full calendar validity. The review report covers all runbooks.
-API contracts, incidents and combined search/graph filtering are follow-ups.
+API contracts, incidents and combined retrieval filtering are follow-ups.
 See [shared capability boundaries](../README.md#validation-versus-reporting).

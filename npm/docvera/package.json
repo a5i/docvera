@@ -1,22 +1,35 @@
 {
   "name": "@a5i/docvera",
-  "version": "0.1.2",
-  "description": "Native Node.js bindings for docvera, a schema-validated, indexed and queryable Markdown knowledge engine",
+  "version": "0.2.0",
+  "description": "Native Node.js and WebAssembly bindings for docvera, a schema-validated, queryable Markdown knowledge engine",
   "license": "MIT",
   "type": "commonjs",
   "main": "index.js",
   "types": "index.d.ts",
+  "exports": {
+    ".": { "types": "./index.d.ts", "default": "./index.js" },
+    "./wasm": {
+      "types": "./wasm/index.d.ts",
+      "browser": "./wasm/index.mjs",
+      "node": { "import": "./wasm/node.mjs", "require": "./wasm/node.cjs" },
+      "default": "./wasm/index.mjs"
+    },
+    "./package.json": "./package.json"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/a5i/docvera",
     "directory": "npm/docvera"
   },
-  "files": ["index.js", "index.d.ts", "platforms.cjs", "docvera.*.node", "LICENSE"],
+  "files": ["index.js", "index.d.ts", "platforms.cjs", "wasm/", "docvera.*.node", "LICENSE"],
   "engines": { "node": ">=22" },
   "publishConfig": { "access": "public" },
   "scripts": {
     "build": "node build.cjs",
     "build:release": "node build.cjs --release",
+    "build:wasm": "npm --prefix ../../crates/docvera-wasm run build && node scripts/assemble-wasm.cjs",
+    "test:wasm": "node --test test/wasm/*.test.cjs",
+    "test:wasm:browser": "node test/wasm/browser.cjs",
     "validate:release": "node scripts/validate-release.cjs",
     "test": "node --test test/*.test.cjs"
   }

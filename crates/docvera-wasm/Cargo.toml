@@ -1,0 +1,17 @@
+[package]
+name = "docvera-wasm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish = false
+description = "Experimental WebAssembly checker and in-memory SQL bindings for Docvera"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+docvera-engine = { path = "../docvera-engine", version = "0.2.0", default-features = false, features = ["sql"] }
+wasm-bindgen = "0.2"
+serde.workspace = true
+serde-wasm-bindgen = "0.6"

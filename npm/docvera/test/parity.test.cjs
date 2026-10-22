@@ -17,28 +17,25 @@ test('native Node API and CLI return equivalent full-cycle contracts', async () 
   try {
     cli(root, 'init');
     engine = await openWorkspace({ root });
+    engine = await openWorkspace({ root });
     assert.deepEqual(await engine.check(), cli(root, 'check'));
-    assert.deepEqual(await engine.index({ rebuild: true }), cli(root, 'index', '--rebuild'));
     const sql = "SELECT declared_id,type FROM documents ORDER BY path";
     assert.deepEqual(await engine.querySql(sql), cli(root, 'query', 'sql', sql));
     assert.deepEqual(await engine.references({ id: 'FEATURE-0042', direction: 'incoming', depth: 2 }), cli(root, 'graph', 'incoming', 'FEATURE-0042', '--depth', '2'));
-    const hits = await engine.search({ text: 'OAuth', documentType: 'feature', section: 'Security' });
-    assert.deepEqual(hits, cli(root, 'search', 'OAuth', '--type', 'feature', '--section', 'Security'));
-    assert.equal(hits.results.length, 1);
-    assert.deepEqual(await engine.extract(hits.results[0].sectionId), cli(root, 'extract', hits.results[0].sectionId));
+    const sections = await engine.querySql("SELECT section_id FROM sections WHERE heading = 'Security'");
+    assert.equal(sections.rows.length, 1);
+    assert.deepEqual(await engine.extract(sections.rows[0].section_id), cli(root, 'extract', sections.rows[0].section_id));
     await assert.rejects(engine.querySql('DELETE FROM documents'));
     const path = join(root, 'docs/feature-0042.md');
     writeFileSync(path, readFileSync(path, 'utf8').replace('OAuth', 'OpenID'));
-    assert.equal((await engine.index()).updated, 1);
-    assert.equal((await engine.search({ text: 'OpenID' })).results.length, 1);
+    // Retrieval reads current files; no refresh call exists.
+    const refreshed = await engine.querySql("SELECT s.section_id, s.text FROM sections s JOIN documents d ON d.path = s.document_id WHERE d.declared_id = 'FEATURE-0042' AND s.heading = 'Security'");
+    assert.ok(refreshed.rows[0].text.includes('OpenID'));
     rmSync(path);
-    assert.equal((await engine.index()).deleted, 1);
     const result = await engine.check();
     assert.ok(result.diagnostics.some(d => d.rule === 'relation.target'));
-    assert.equal((await engine.search({ text: 'OpenID' })).results.length, 0);
-    const pending = engine.querySql('SELECT count(*) AS n FROM documents');
+    assert.equal((await engine.querySql('SELECT count(*) AS n FROM documents')).rows[0].n, 2);
     await engine.close();
-    assert.equal((await pending).rows[0].n, 2);
     await assert.rejects(engine.check(), /closed/);
   } finally {
     if (engine) await engine.close();
@@ -61,7 +58,6 @@ test('targetTypes alternatives have CLI/native parity and invalidate indexed dia
     const valid = await engine.check();
     assert.deepEqual(valid, cli(root, 'check'));
     assert.deepEqual(valid.diagnostics, []);
-    await engine.index();
 
     writeFileSync(schemaPath, original.replace('targetType: feature', 'targetTypes: [feature]'));
     const invalid = await engine.check();
@@ -73,7 +69,6 @@ test('targetTypes alternatives have CLI/native parity and invalidate indexed dia
       assert.equal(error.status, 1);
       assert.deepEqual(invalid, JSON.parse(error.stdout));
     }
-    await engine.index();
     const sql = "SELECT rule,message FROM diagnostics WHERE rule='relation.target'";
     const report = await engine.querySql(sql);
     assert.equal(report.rows.length, 1);

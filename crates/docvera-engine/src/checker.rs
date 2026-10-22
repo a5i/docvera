@@ -17,7 +17,8 @@ use std::{
 use walkdir::WalkDir;
 
 /// Portable workspace-relative paths and UTF-8 source texts. No filesystem is required.
-#[derive(Default)]
+#[derive(Default, serde::Deserialize)]
+#[serde(default, deny_unknown_fields)]
 pub struct WorkspaceSources {
     pub documents: BTreeMap<String, String>,
     pub schemas: BTreeMap<String, String>,
@@ -378,7 +379,9 @@ impl CheckerContext {
         Ok(())
     }
 
-    pub(crate) fn snapshot(&self) -> Result<Workspace> {
+    /// Validate and return an owned in-memory Workspace, suitable for SQL projection.
+    /// No disk I/O; subsequent baseline updates do not change the returned snapshot.
+    pub fn snapshot(&self) -> Result<Workspace> {
         self.overlay(None)
     }
     pub fn check(&self) -> Result<CheckResult> {

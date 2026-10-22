@@ -31,7 +31,7 @@ Do not add an envelope `$schema` property just to select this editor contract:
 unknown envelope fields are rejected. A Markdown document's front-matter `$schema`
 continues to select its **document schema**, not this generated meta-schema.
 
-`docvera schema check-result`, `diagnostic`, and `index-result` generate contracts for
+`docvera schema check-result` and `diagnostic` generate contracts for
 serialized results. `docvera contract --format json` includes all five generated schemas
 under `jsonSchemas`; `docvera guide --format json` includes that same contract. `schema`
 itself prints a bare schema, without a result envelope, and needs no workspace.
@@ -60,7 +60,7 @@ Legacy `docvera.yaml` remains supported with the equivalent `version`, `include`
 
 Paths are relative to the workspace and normalized to `/` in results. Directory symlinks are not followed, symlink files are not discovered as documents. `.git`, `.docvera`, `target` and `node_modules` are always skipped. Includes/excludes use globset semantics, not `.gitignore` semantics. By default all included files require a schema (`[validation] untyped = "error"`). Set `untyped = "skip"` to retain untyped documents as reference targets but omit their diagnostics, including parse/link/SHACL findings. An explicit invalid/missing `$schema` or ambiguous mappings still produce errors. Multiple matching mappings are an error unless a document provides an explicit selector.
 
-A document's front-matter `$schema` takes precedence and resolves relative to that document. Schema files must be inside the canonical workspace root; remote selection is unsupported. The selector is a reserved engine field, removed only from the copy of metadata passed to JSON Schema validation. It remains available in the IR/index.
+A document's front-matter `$schema` takes precedence and resolves relative to that document. Schema files must be inside the canonical workspace root; remote selection is unsupported. The selector is a reserved engine field, removed only from the copy of metadata passed to JSON Schema validation. It remains available in the IR.
 
 Front matter is recognized only at the very beginning, after an optional UTF-8 BOM: YAML opens with `---` and closes with `---` or `...`; TOML opens and closes with `+++`. Delimiter lines must contain exactly the delimiter (LF/CRLF supported). Both formats are enabled by default; `[frontMatter] yaml = false` / `toml = false` disables recognition of that format so it remains Markdown. Other positions and delimiters are Markdown. An enabled opener without a closer reports `yaml.unclosed` / `toml.unclosed`; malformed content reports `yaml.parse` / `toml.parse`, rather than silently becoming Markdown. Values must form a mapping; duplicate keys are errors. BOM and line endings stay unchanged in the source/hash; all spans count bytes in the whole original document. YAML and TOML parser locations supply individual token spans for relations and SHACL (including array items); unlocatable values fall back conservatively to the whole front matter. Front-matter JSON Schema errors currently highlight the whole front matter. See [`checker.md`](../../../docs/checker.md) and [`shacl.md`](shacl.md).
 
@@ -91,7 +91,7 @@ toml = true
 untyped = "error"              # or "skip" for editor-oriented workspaces
 ```
 
-The values above are the defaults. pulldown-cmark metadata extensions are always off: the engine handles front matter separately. Unknown parser/front-matter fields are rejected. CLI, index and embedded checks use the same parser settings, which invalidate the index when changed. The IR still stores selected node kinds, not a complete AST for every enabled extension. Use the same dependency revision and options in other readers; engine heading anchors follow the policy documented below, not renderer-specific slug conventions.
+The values above are the defaults. pulldown-cmark metadata extensions are always off: the engine handles front matter separately. Unknown parser/front-matter fields are rejected. CLI, embedded and WASM checks use the same parser settings, which participate in the workspace fingerprint. The IR still stores selected node kinds, not a complete AST for every enabled extension. Use the same dependency revision and options in other readers; engine heading anchors follow the policy documented below, not renderer-specific slug conventions.
 
 ## Envelope
 
@@ -107,7 +107,7 @@ identity:
   uniqueWithin: documentType  # workspace | documentType | directory
 ```
 
-The field must resolve to a non-empty string. Collisions are reported on every affected document. Internal database keys are relative paths, never declared IDs, so invalid duplicate documents remain indexable. Without an identity rule, the conventional string `id` is still exposed for link resolution, but uniqueness is not enforced. Directory scope means the same immediate parent directory, not recursive descendants.
+The field must resolve to a non-empty string. Collisions are reported on every affected document. Internal database keys are relative paths, never declared IDs, so invalid duplicate documents remain visible in SQL. Without an identity rule, the conventional string `id` is still exposed for link resolution, but uniqueness is not enforced. Directory scope means the same immediate parent directory, not recursive descendants.
 
 ## Body and section trees
 

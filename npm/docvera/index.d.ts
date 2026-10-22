@@ -41,27 +41,38 @@ export interface CheckResult {
   documents: number;
   diagnostics: Diagnostic[];
 }
-export interface IndexResult {
+export type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
+export interface QueryResult {
   contractVersion: 1;
-  documents: number;
-  updated: number;
-  deleted: number;
-  diagnostics: number;
+  rows: Record<string, JsonValue>[];
 }
-export interface SearchOptions {
-  text: string;
-  documentType?: string;
-  section?: string;
-  limit?: number;
+/** Independently owned SQL revision; remains valid after checker updates/close. */
+export interface SqlSnapshot {
+  querySql(sql: string): Promise<QueryResult>;
+  close(): Promise<void>;
 }
-export interface SearchHit {
-  documentId: string | null;
-  path: string;
-  sectionId: string;
-  section: string;
-  location: Span;
-  score: number;
-  snippet: string;
+/** Config uses the same names/defaults as the Rust/CLI configuration contract. */
+export interface WorkspaceConfig {
+  version: 1;
+  include: string[];
+  exclude?: string[];
+  schemas: Record<string, string>;
+  validation?: {
+    untyped?: 'error' | 'skip';
+    /** Supported by native builds; WASM rejects SHACL configuration. */
+    shacl?: { shapes: string[] } | null;
+  };
+  parser?: Partial<Record<
+    'tables' | 'strikethrough' | 'taskLists' | 'footnotes' | 'gfm' | 'math' |
+    'wikilinks' | 'smartPunctuation' | 'headingAttributes' | 'definitionLists' |
+    'superscript' | 'subscript', boolean>>;
+  frontMatter?: { yaml?: boolean; toml?: boolean };
+}
+export interface WorkspaceSources {
+  documents?: Record<string, string>;
+  schemas?: Record<string, string>;
+  shapes?: Record<string, string>;
+  assets?: string[];
 }
 export interface GraphResult {
   contractVersion: 1;
@@ -78,10 +89,8 @@ export interface ExtractResult {
 }
 export interface Workspace {
   check(): Promise<CheckResult>;
-  index(options?: { rebuild?: boolean }): Promise<IndexResult>;
-  querySql(sql: string): Promise<{ contractVersion: 1; rows: Record<string, string | number | null>[] }>;
+  querySql(sql: string): Promise<QueryResult>;
   references(options: { id: string; direction?: 'incoming' | 'outgoing'; depth?: number }): Promise<GraphResult>;
-  search(options: SearchOptions): Promise<{ contractVersion: 1; results: SearchHit[] }>;
   extract(sectionId: string): Promise<ExtractResult>;
   close(): Promise<void>;
 }
@@ -90,7 +99,7 @@ export function openWorkspace(options?: { root?: string }): Promise<Workspace>;
 
 /** A snapshot, not a watcher. Portable workspace-relative paths; UTF-8 source text.
  * Reopen after config/shapes/asset changes; schemas can be updated in memory. Operations are serialized by the native checker. */
-export interface Checker {
+export interface PortableChecker {
   check(): Promise<CheckResult>;
   /** Does not change the baseline. Excluded paths return documents=0. */
   checkDocument(path: string, text: string): Promise<CheckResult>;
@@ -100,6 +109,16 @@ export interface Checker {
   updateSchema(path: string, text: string): Promise<void>;
   updateDocument(path: string, text: string): Promise<void>;
   removeDocument(path: string): Promise<void>;
+  querySql(sql: string): Promise<QueryResult>;
+  sqlSnapshot(): Promise<SqlSnapshot>;
   close(): Promise<void>;
 }
-export function openChecker(options?: { root?: string }): Promise<Checker>;
+/** Native checker adds graph and source retrieval to the portable checker API. */
+export interface Checker extends PortableChecker {
+  references(options: { id: string; direction?: 'incoming' | 'outgoing'; depth?: number }): Promise<GraphResult>;
+  extract(sectionId: string): Promise<ExtractResult>;
+}
+export type CheckerOptions =
+  | { root?: string; config?: never; sources?: never }
+  | { root?: never; config: WorkspaceConfig; sources: WorkspaceSources };
+export function openChecker(options?: CheckerOptions): Promise<Checker>;

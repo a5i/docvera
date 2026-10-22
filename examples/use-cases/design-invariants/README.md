@@ -18,7 +18,6 @@ From the repository root after building `docvera`:
 ```sh
 root=examples/use-cases/design-invariants
 target/debug/docvera --root "$root" check
-target/debug/docvera --root "$root" index
 target/debug/docvera --root "$root" query sql "$(cat "$root/queries/untracked-stable-patterns.sql")" --format json
 ```
 
@@ -35,7 +34,7 @@ the named source shape under `urn:docvera:policy:design:`:
   `failure-capable-pattern-has-failure-scenario`.
 - Set `FIND-1` status to `resolved`:
   `stable-pattern-implemented-or-tracked` on `PTN-1`
-  (the SQL report returns `[{"pattern":"PTN-1"}]` after indexing).
+  (the SQL report returns `[{"pattern":"PTN-1"}]` in the SQL report).
 - Empty `governs` on `PRIN-2`: `stable-principle-governs-a-rule`
   and `stable-rule-governed-by-active-principle` on `RULE-2`.
 - Point `RULE-2` at deprecated `PRIN-3`:

@@ -35,9 +35,6 @@ for (const [name, count, file, from, to] of [
       const check = await engine.check();
       assert.deepEqual(check, cli(root, ['check']));
       assert.deepEqual(check.diagnostics, []);
-      const indexed = await engine.index();
-      assert.equal(indexed.updated, count);
-      assert.equal(cli(root, ['index']).updated, 0);
       const compareReports = async () => {
         for (const file of readdirSync(join(root, 'queries')).filter(file => file.endsWith('.sql')).sort()) {
           const sql = readFileSync(join(root, 'queries', file), 'utf8');
@@ -49,14 +46,11 @@ for (const [name, count, file, from, to] of [
       const original = readFileSync(path, 'utf8');
       writeFileSync(path, replaceFixtureText(original, from, to));
       assert.deepEqual((await engine.check()).diagnostics, []);
-      await engine.index();
       await compareReports();
       if (name === 'operational-readiness') {
-        const options = { text: 'database connection timeout', documentType: 'runbook', section: 'Diagnosis' };
-        const hits = await engine.search(options);
-        assert.deepEqual(hits, cli(root, ['search', options.text, '--type', 'runbook', '--section', 'Diagnosis']));
-        assert.equal(hits.results.length, 1);
-        const section = hits.results[0].sectionId;
+        const sections = await engine.querySql("SELECT s.section_id FROM sections s JOIN documents d ON d.path = s.document_id WHERE d.declared_id = 'RUN-001' AND s.heading = 'Diagnosis'");
+        assert.equal(sections.rows.length, 1);
+        const section = sections.rows[0].section_id;
         assert.deepEqual(await engine.extract(section), cli(root, ['extract', section]));
       }
       if (name === 'architecture-governance') {
@@ -82,8 +76,6 @@ for (const [name, count, file, from, to] of [
       const invalid = await engine.check();
       assert.ok(invalid.diagnostics.length > 0);
       assert.deepEqual(invalid, cli(root, ['check'], 1));
-      await engine.index();
-      assert.equal(cli(root, ['index']).updated, 0);
     } finally {
       if (engine) await engine.close();
       rmSync(root, { recursive: true, force: true });

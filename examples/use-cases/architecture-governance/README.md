@@ -8,7 +8,6 @@ From the repository root after building `docvera`:
 ```sh
 root=examples/use-cases/architecture-governance
 target/debug/docvera --root "$root" check
-target/debug/docvera --root "$root" index
 target/debug/docvera --root "$root" query sql "$(cat "$root/queries/layer-violations.sql")" --format json
 target/debug/docvera --root "$root" query sql "$(cat "$root/queries/unlinked-adrs.sql")" --format json
 target/debug/docvera --root "$root" graph incoming COMP-001 --depth 2 --format json
@@ -22,7 +21,7 @@ Graph traversal includes all resolved relation kinds, not only dependencies.
 ## Try changes in a copy
 
 - Add `dependsOn: [COMP-002]` to COMP-001: layer-violations returns
-  `[{"source":"COMP-001","target":"COMP-002"}]` after indexing; `check` passes.
+  `[{"source":"COMP-001","target":"COMP-002"}]` in the SQL report; `check` passes.
   This also creates a cycle: traversal terminates, but there is no acyclicity diagnostic.
 - Remove ADR components: unlinked-adrs returns `[{"adr":"ADR-001"}]`;
   `check` still passes because only accepted ADRs need links under this report policy.

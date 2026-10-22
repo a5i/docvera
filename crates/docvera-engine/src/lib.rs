@@ -1,8 +1,6 @@
 pub mod checker;
 pub mod config;
 pub mod contracts;
-#[cfg(feature = "index")]
-pub mod index;
 pub mod model;
 pub mod parser;
 #[cfg(feature = "shacl")]
@@ -10,10 +8,13 @@ mod policy;
 #[cfg(not(feature = "shacl"))]
 #[path = "policy_disabled.rs"]
 mod policy;
+pub mod retrieval;
 pub mod schema;
 #[cfg(feature = "shacl")]
 mod shacl_report;
 mod source_map;
+#[cfg(feature = "sql")]
+pub mod sql;
 mod toml_source_map;
 pub mod workspace;
 

@@ -1,5 +1,5 @@
-#![cfg(all(feature = "index", feature = "shacl"))]
-use docvera_engine::{Workspace, index, model::RdfTerm};
+#![cfg(all(feature = "sql", feature = "shacl"))]
+use docvera_engine::{Workspace, model::RdfTerm};
 use std::{fs, path::Path};
 use tempfile::TempDir;
 
@@ -365,7 +365,6 @@ fn multiple_shape_files_keep_prefixes_and_blank_nodes_local() {
 fn severity_mapping_and_shape_edits_invalidate_the_index_fingerprint() {
     let dir = fixture();
     let workspace = Workspace::load(dir.path()).unwrap();
-    index::index(&workspace, false).unwrap();
     put(
         dir.path(),
         "policies/core.ttl",
@@ -378,7 +377,14 @@ fn severity_mapping_and_shape_edits_invalidate_the_index_fingerprint() {
     let result = updated.check();
     assert!(result.valid());
     assert_eq!(result.diagnostics[0].severity, "warning");
-    assert_eq!(index::index(&updated, false).unwrap().updated, 2);
+    assert!(
+        updated
+            .query_sql("SELECT count(*) AS n FROM diagnostics")
+            .unwrap()["rows"][0]["n"]
+            .as_u64()
+            .unwrap()
+            >= 1
+    );
     put(
         dir.path(),
         "policies/core.ttl",

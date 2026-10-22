@@ -32,10 +32,40 @@ jobs:
         with:
           key: checker-only
       - run: cargo test --locked -p docvera-engine --no-default-features
-      - run: cargo test --locked -p docvera-engine --no-default-features --features index
+      - run: cargo test --locked -p docvera-engine --no-default-features --features sql
       - run: cargo test --locked -p docvera-engine --no-default-features --features shacl
       - run: cargo build --locked -p docvera-engine --no-default-features --target wasm32-unknown-unknown
+  wasm-sql:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: wasm-sql
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: crates/docvera-wasm/package-lock.json
+      - run: cargo test --locked -p docvera-engine --no-default-features --features sql
+      - run: npm --prefix crates/docvera-wasm ci
+      - name: Install Playwright Chromium
+        working-directory: crates/docvera-wasm
+        run: npm exec -- playwright install --with-deps chromium
+      - run: npm --prefix npm/docvera run build:wasm
+      - run: npm --prefix crates/docvera-wasm test
+      - run: npm --prefix npm/docvera run test:wasm
+      - run: npm --prefix npm/docvera run test:wasm:browser
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wasm-ci-runtime
+          path: npm/docvera/wasm/
+          if-no-files-found: error
   test-build:
+    needs: wasm-sql
     strategy:
       fail-fast: false
       matrix:
@@ -45,9 +75,6 @@ jobs:
             binary: docvera
           - os: ubuntu-24.04-arm
             name: linux-arm64
-            binary: docvera
-          - os: macos-15-intel
-            name: macos-x64
             binary: docvera
           - os: macos-latest
             name: macos-arm64
@@ -79,6 +106,10 @@ jobs:
         run: npm --prefix npm/docvera test
         env:
           DOCVERA_BIN: ${{ github.workspace }}/target/release/${{ matrix.binary }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: wasm-ci-runtime
+          path: npm/docvera/wasm
       - name: Pack npm package (current-platform smoke artifact)
         working-directory: npm/docvera
         run: npm pack

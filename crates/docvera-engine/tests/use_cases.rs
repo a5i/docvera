@@ -1,8 +1,8 @@
-#![cfg(all(feature = "index", feature = "shacl"))]
+#![cfg(all(feature = "sql", feature = "shacl"))]
 #[path = "../../../tests/support/mod.rs"]
 mod support;
 
-use docvera_engine::{Workspace, index};
+use docvera_engine::Workspace;
 use serde_json::{Value, json};
 use std::{fs, path::Path};
 use support::{SCENARIOS, edit, fixture, reports, text::line_endings_like};
@@ -11,15 +11,15 @@ fn check(root: &Path) -> docvera_engine::model::CheckResult {
     Workspace::load(root).unwrap().check()
 }
 
+/// Validate current files. Reports read the live Workspace; there is no snapshot to refresh.
 fn refresh(root: &Path) {
     let ws = Workspace::load(root).unwrap();
     assert!(ws.check().valid(), "{:?}", ws.check().diagnostics);
-    index::index(&ws, false).unwrap();
 }
 
 fn report(root: &Path, name: &str) -> Value {
     let sql = fs::read_to_string(root.join("queries").join(format!("{name}.sql"))).unwrap();
-    index::query(root, &sql).unwrap()["rows"].clone()
+    Workspace::load(root).unwrap().query_sql(&sql).unwrap()["rows"].clone()
 }
 
 #[test]
@@ -36,10 +36,8 @@ fn all_examples_validate_and_every_report_has_exact_baseline_rows() {
         assert!(!root.join(".docvera").exists(), "check must be index-free");
         let ws = Workspace::load(root).unwrap();
         assert_eq!(ws.documents.len(), count, "{name}");
-        assert_eq!(index::index(&ws, false).unwrap().updated, count);
-        assert_eq!(index::index(&ws, false).unwrap().updated, 0);
         for path in reports(root) {
-            let rows = index::query(root, &fs::read_to_string(&path).unwrap()).unwrap();
+            let rows = ws.query_sql(&fs::read_to_string(&path).unwrap()).unwrap();
             let expected = if path.file_stem().unwrap() == "coverage" {
                 json!([
                     {"requirement":"REQ-001", "tests":1, "latest_result":"passed"},
@@ -257,9 +255,7 @@ fn business_policy_mutations_are_reports_not_schema_failures() {
         refresh(dir.path());
         let original = fs::read_to_string(dir.path().join(file)).unwrap();
         edit(dir.path(), file, from, to);
-        // Reports still read the old snapshot until an explicit refresh.
-        assert_eq!(report(dir.path(), query), json!([]));
-        refresh(dir.path());
+        // Reports always read the live Workspace: the mutation is visible immediately.
         assert_eq!(report(dir.path(), query), expected, "{name}: {query}");
         fs::write(dir.path().join(file), original).unwrap();
         refresh(dir.path());
@@ -287,20 +283,17 @@ fn every_scenario_reindexes_deletions_and_inbound_references() {
         let ws = Workspace::load(dir.path()).unwrap();
         assert!(!ws.check().valid());
         assert!(ws.relations.iter().any(|r| r.status == "missing"));
-        assert_eq!(index::index(&ws, false).unwrap().deleted, 1);
         assert_eq!(
-            index::query(
-                dir.path(),
-                &format!("SELECT declared_id FROM documents WHERE declared_id='{id}'")
-            )
+            ws.query_sql(&format!(
+                "SELECT declared_id FROM documents WHERE declared_id='{id}'"
+            ))
             .unwrap()["rows"],
             json!([])
         );
         assert_eq!(
-            index::query(
-                dir.path(),
-                &format!("SELECT section_id FROM sections WHERE document_id='{file}'")
-            )
+            ws.query_sql(&format!(
+                "SELECT section_id FROM sections WHERE document_id='{file}'"
+            ))
             .unwrap()["rows"],
             json!([])
         );
@@ -338,7 +331,7 @@ fn qa_latest_execution_is_selected_by_date_not_worst_historical_result() {
 }
 
 #[test]
-fn operational_conditional_metadata_and_search_extract_lifecycle() {
+fn operational_conditional_metadata_and_extract_lifecycle() {
     let dir = fixture("operational-readiness");
     edit(
         dir.path(),
@@ -354,18 +347,16 @@ fn operational_conditional_metadata_and_search_extract_lifecycle() {
         "lifecycle: development",
     );
     refresh(dir.path());
-    let options = index::SearchOptions {
-        text: "database connection timeout".into(),
-        document_type: Some("runbook".into()),
-        section: Some("Diagnosis".into()),
-        limit: None,
-    };
-    let hits = index::search(dir.path(), &options).unwrap();
-    assert_eq!(hits["results"].as_array().unwrap().len(), 1);
-    assert_eq!(hits["results"][0]["documentId"], "RUN-001");
-    let section = hits["results"][0]["sectionId"].as_str().unwrap();
+    let ws = Workspace::load(dir.path()).unwrap();
+    let sections = ws
+        .query_sql(
+            "SELECT s.section_id FROM sections s JOIN documents d ON d.path = s.document_id \
+             WHERE d.declared_id = 'RUN-001' AND s.heading = 'Diagnosis'",
+        )
+        .unwrap();
+    let section = sections["rows"][0]["section_id"].as_str().unwrap();
     assert!(
-        index::extract(dir.path(), section).unwrap()["markdown"]
+        ws.extract(section).unwrap()["markdown"]
             .as_str()
             .unwrap()
             .starts_with("# Diagnosis")
@@ -377,9 +368,13 @@ fn operational_conditional_metadata_and_search_extract_lifecycle() {
         "connection pool exhaustion",
     );
     refresh(dir.path());
-    assert_eq!(
-        index::search(dir.path(), &options).unwrap()["results"],
-        json!([])
+    let ws = Workspace::load(dir.path()).unwrap();
+    let extracted = ws.extract(section).unwrap()["markdown"].clone();
+    assert!(
+        extracted
+            .as_str()
+            .unwrap()
+            .contains("connection pool exhaustion")
     );
 }
 
@@ -388,7 +383,10 @@ fn architecture_graph_traverses_dependencies_in_both_directions() {
     let dir = fixture("architecture-governance");
     refresh(dir.path());
     for (id, direction) in [("COMP-001", "incoming"), ("COMP-002", "outgoing")] {
-        let graph = index::graph(dir.path(), id, direction, 1).unwrap();
+        let graph = Workspace::load(dir.path())
+            .unwrap()
+            .graph(id, direction, 1)
+            .unwrap();
         assert!(
             graph["edges"]
                 .as_array()

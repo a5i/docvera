@@ -62,8 +62,6 @@ fn cli_full_cycle_and_contract() {
             .len(),
         0
     );
-    assert_eq!(json(root, &["index"], 0)["updated"], 3);
-    assert_eq!(json(root, &["index"], 0)["updated"], 0);
     assert_eq!(
         json(
             root,
@@ -83,20 +81,16 @@ fn cli_full_cycle_and_contract() {
             .len(),
         3
     );
-    let hits = json(
+    let sections = json(
         root,
         &[
-            "search",
-            "OAuth",
-            "--type",
-            "feature",
-            "--section",
-            "Security",
+            "query",
+            "sql",
+            "SELECT section_id FROM sections WHERE heading = 'Security'",
         ],
         0,
     );
-    assert_eq!(hits["results"].as_array().unwrap().len(), 1);
-    let section_id = hits["results"][0]["sectionId"].as_str().unwrap();
+    let section_id = sections["rows"][0]["section_id"].as_str().unwrap();
     assert!(
         json(root, &["extract", section_id], 0)["markdown"]
             .as_str()
@@ -122,7 +116,7 @@ fn validation_failure_has_code_one_and_operational_errors_have_code_two() {
     );
     json(root, &["init"], 0);
     json(root, &["init"], 2);
-    json(root, &["query", "sql", "SELECT 1"], 2);
+    json(root, &["query", "sql", "DELETE FROM documents"], 2);
     let path = root.join("docs/adr-0001.md");
     let original = fs::read_to_string(&path).unwrap();
     fs::write(&path, original.replace("## Context", "## Wrong")).unwrap();
@@ -137,8 +131,7 @@ fn validation_failure_has_code_one_and_operational_errors_have_code_two() {
     let human = run(root, &["check"]);
     assert_eq!(human.status.code(), Some(1));
     assert!(String::from_utf8_lossy(&human.stdout).contains("[body.additional]"));
-    // Invalid documents are still inspectable in the index.
-    json(root, &["index"], 0);
+    // Invalid documents are still inspectable through SQL.
     let diagnostics = json(root, &["query", "sql", "SELECT rule FROM diagnostics"], 0);
     assert!(!diagnostics["rows"].as_array().unwrap().is_empty());
     json(root, &["query", "sql", "DROP TABLE documents"], 2);
@@ -251,14 +244,13 @@ fn guide_sql_and_graph_examples_work_on_initialized_workspace() {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path();
     json(root, &["init"], 0);
-    json(root, &["index"], 0);
     for sql in [
         "SELECT declared_id,type,path FROM documents ORDER BY path",
         "SELECT * FROM sections LIMIT 1",
         "SELECT * FROM nodes LIMIT 1",
         "SELECT * FROM relations LIMIT 10",
         "SELECT document_id,rule,severity,message FROM diagnostics ORDER BY document_id,rule",
-        "SELECT document_id,json_extract(shacl,'$.sourceField') AS field FROM diagnostics WHERE shacl IS NOT NULL",
+        "SELECT document_id,shacl['sourceField'] AS field FROM diagnostics WHERE shacl IS NOT NULL",
     ] {
         assert!(include_str!("../assets/cli-guide.md").contains(sql));
         assert!(json(root, &["query", "sql", sql], 0)["rows"].is_array());

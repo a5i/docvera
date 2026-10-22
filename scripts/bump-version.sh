@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Bump the docvera version everywhere and keep every manifest in sync.
 #
-# The single source of truth for the three Rust crates is
+# The single source of truth for the four Rust crates is
 # [workspace.package].version in the root Cargo.toml; every member crate uses
 # `version.workspace = true`. This script updates that one line, the
 # docvera-engine requirement in [workspace.dependencies] and the single npm
@@ -59,6 +59,8 @@ inplace "s|^version = \".*\"|version = \"$NEW\"|" Cargo.toml
 # requirement in lockstep or a published CLI would pull an older engine.
 
 inplace "s|^\(docvera-engine = .*version = \"\)[^\"]*\(\"\)|\1$NEW\2|" Cargo.toml
+# WASM disables the engine's default features and has its own dependency entry.
+inplace "s|^\(docvera-engine = .*version = \"\)[^\"]*\(\"\)|\1$NEW\2|" crates/docvera-wasm/Cargo.toml
 
 # --- 2. npm (npm/docvera/package.json) ----------------------------------------
 
@@ -71,8 +73,8 @@ inplace "s|\"version\": \".*\"|\"version\": \"$NEW\"|" "$NPM"
 # Update only the workspace members in the lockfile; a bare `cargo update`
 # would also churn third-party dependencies and break --locked CI.
 
-cargo update -p docvera-engine -p docvera-cli -p docvera-node --offline \
-  || cargo update -p docvera-engine -p docvera-cli -p docvera-node
+cargo update -p docvera-engine -p docvera-cli -p docvera-node -p docvera-wasm --offline \
+  || cargo update -p docvera-engine -p docvera-cli -p docvera-node -p docvera-wasm
 
 # --- 4. verify everything agrees ----------------------------------------------
 
@@ -86,13 +88,16 @@ CARGO_VERSIONS=$(cargo metadata --format-version 1 --no-deps \
 
 NPM_V=$(grep -m1 '"version"' "$NPM" | sed 's/.*: "\(.*\)".*/\1/' | tr -d ',')
 ENGINE_REQ=$(sed -n 's/^docvera-engine = .*version = "\([^"]*\)".*/\1/p' Cargo.toml)
+WASM_ENGINE_REQ=$(sed -n 's/^docvera-engine = .*version = "\([^"]*\)".*/\1/p' crates/docvera-wasm/Cargo.toml)
 
 echo "cargo (all crates)   = $CARGO_VERSIONS"
 echo "engine requirement   = $ENGINE_REQ"
+echo "wasm engine req      = $WASM_ENGINE_REQ"
 echo "npm main             = $NPM_V"
 
 [ "$CARGO_VERSIONS" = "$NEW" ]      || die "cargo version is '$CARGO_VERSIONS', expected '$NEW'"
 [ "$ENGINE_REQ"    = "$NEW" ]       || die "engine requirement is '$ENGINE_REQ', expected '$NEW'"
+[ "$WASM_ENGINE_REQ" = "$NEW" ] || die "WASM engine requirement is '$WASM_ENGINE_REQ', expected '$NEW'"
 [ "$NPM_V"         = "$NEW" ]       || die "npm package.json is '$NPM_V', expected '$NEW'"
 
 printf '\nOK: all manifests at %s\n' "$NEW"

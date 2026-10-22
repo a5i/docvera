@@ -2,9 +2,9 @@
 
 A cross-platform **Rust prototype** that turns Git-managed Markdown into a validated, typed, queryable local knowledge base. The same engine powers the `docvera` CLI and a native Node.js addon; Node does not spawn the CLI.
 
-**Implemented:** YAML/JSON schemas, section-tree validation, lint warnings, ID uniqueness, typed metadata relations, SHACL Core/SPARQL cross-document policies, Markdown links/anchors, incremental index writes, read-only SQL, graph traversal, section-level BM25 search and original Markdown extraction.
+**Implemented:** YAML/JSON schemas, section-tree validation, lint warnings, ID uniqueness, typed metadata relations, SHACL Core/SPARQL cross-document policies, Markdown links/anchors, read-only GlueSQL over the current workspace, graph traversal and original Markdown extraction.
 
-**Prototype choices:** SQLite + bundled FTS5 instead of DuckDB, and pulldown-cmark instead of comrak. No database server or downloadable extensions. See [architecture and limitations](docs/architecture.md), [schema language](crates/docvera-cli/assets/schema.md), and [v1 command contracts](crates/docvera-cli/assets/contracts/v1.json). The [original proposal](docs/input/markdown_knowledge_engine_poc_en-2.md) is a roadmap, not a claim that every proposed capability is implemented.
+**Prototype choices:** pure-Rust GlueSQL instead of SQLite/DuckDB, and pulldown-cmark instead of comrak. No database server, bundled C library or downloadable extensions. See [architecture and limitations](docs/architecture.md), [schema language](crates/docvera-cli/assets/schema.md), and [v1 command contracts](crates/docvera-cli/assets/contracts/v1.json). The [original proposal](docs/input/markdown_knowledge_engine_poc_en-2.md) is a roadmap, not a claim that every proposed capability is implemented.
 
 ## Install
 
@@ -15,12 +15,13 @@ cargo install --locked docvera-cli # CLI from crates.io
 npm install @a5i/docvera           # native Node.js addon (prebuilt per platform)
 ```
 
-CLI binaries for Linux x64/arm64, macOS x64/arm64 and Windows x64 are attached
+CLI binaries for Linux x64/arm64, macOS arm64 and Windows x64 are attached
 to each [GitHub Release](https://github.com/a5i/docvera/releases) with
 SHA-256 checksums. Like `eregex`, the single `@a5i/docvera` npm package contains
-prebuilt `.node` binaries for all five platforms; its loader selects the matching
+prebuilt `.node` binaries for all four platforms; its loader selects the matching
 binary at runtime. No separate platform packages or optional dependencies are
 needed. Building locally still works as shown in the [Node.js API](#nodejs-api) section.
+Intel macOS is no longer built or tested in CI and has no prebuilt native addon; use the explicit `@a5i/docvera/wasm` entry for the portable in-memory API.
 
 ## Install from source
 
@@ -33,7 +34,7 @@ docvera --version   # docvera 0.1.1
 
 Updating is the same command re-run over the existing installation. A local build without installing works too: `cargo build --locked --release -p docvera-cli`, then use `target/release/docvera` (Windows: `target\release\docvera.exe`).
 
-Requirements: Rust 1.89 or newer (current stable recommended) and a C/C++ compiler — SQLite is compiled from bundled source (Windows: Visual Studio Build Tools with the C++ workload; macOS: Xcode command-line tools; Linux: GCC/Clang and standard build tools). Crates are downloaded once from the pinned `Cargo.lock`, including the Rudof SHACL engine. The native Node.js addon is published to npm as `@a5i/docvera` with all prebuilt platform binaries in one package; to build it from source instead, see the Node.js API section below.
+Requirements: Rust 1.89 or newer (current stable recommended). No C/C++ compiler is needed: the engine is pure Rust, including its GlueSQL query layer. Crates are downloaded once from the pinned `Cargo.lock`, including the Rudof SHACL engine. The native Node.js addon is published to npm as `@a5i/docvera` with all prebuilt platform binaries in one package; to build it from source instead, see the Node.js API section below.
 
 ## Migrating from md-schema / mdx
 
@@ -43,8 +44,8 @@ Update scripts to use `docvera`, native parity overrides to `DOCVERA_BIN`, and
 Node imports to `@a5i/docvera` (local source package: `npm/docvera`). Rust
 packages are now `docvera-engine`, `docvera-cli`, and `docvera-node`.
 Replace `urn:mdx:` with `urn:docvera:` in SHACL policies and schema identifiers.
-Run `docvera index --rebuild` to create `.docvera/index.sqlite3`; the old `.mdx`
-index is not reused and can be removed. Markdown documents and document schemas
+There is no derived database file to rebuild. Remove any leftover `.mdx` or
+`.docvera` directory from older versions. Markdown documents and document schemas
 otherwise keep their existing format.
 
 ## Try the entire cycle
@@ -55,10 +56,8 @@ Prerequisites: see [Install from source](#install-from-source). Run the full cyc
 cargo build --locked --release -p docvera-cli
 cargo run --locked --bin docvera -- --root demo init
 cargo run --locked --bin docvera -- --root demo check
-cargo run --locked --bin docvera -- --root demo index
 cargo run --locked --bin docvera -- --root demo query sql "SELECT declared_id,type FROM documents ORDER BY path" --format json
 cargo run --locked --bin docvera -- --root demo graph incoming FEATURE-0042 --depth 2
-cargo run --locked --bin docvera -- --root demo search OAuth --type feature --section Security
 cargo run --locked --bin docvera -- --root demo extract "docs/feature-0042.md#security"
 ```
 
@@ -67,12 +66,12 @@ Or run the binary directly: `target/release/docvera` (Windows: `target\release\d
 ### Exercise failures and updates
 
 1. Rename `## Context` in `demo/docs/adr-0001.md`: `check` reports unexpected/missing sections and exits **1**.
-2. Restore it; replace `OAuth` with `OpenID` in the feature. Run `index`: one document is updated; search for `OpenID` finds the changed section.
-3. Delete the feature and run `index`: the document and its search entries disappear, inbound references become diagnostics.
+2. Restore it; replace `OAuth` with `OpenID` in the feature and re-run the SQL query: the change is visible immediately.
+3. Delete the feature: inbound references become diagnostics; SQL no longer lists the document.
 4. Run `check --format json` to get structured errors with source spans.
-5. Run `index --rebuild` at any time to regenerate derived content. Markdown remains authoritative.
+Markdown remains authoritative; there is no derived content to regenerate.
 
-`check` reads current files and requires **no database**. `query`, `graph`, `search` and `extract` read the **last indexed snapshot**; index explicitly after changes. `index` retains invalid documents so diagnostics and duplicates remain inspectable; use `check` as the CI gate.
+Every command reads current files; there is **no derived snapshot or database**. `query`/`graph`/`extract` project the validated workspace in memory. Use `check` as the CI gate; it is the same validation that feeds SQL diagnostics.
 
 ## Role-based examples
 
@@ -124,7 +123,7 @@ Keep configuration in `docvera.toml` and standard SHACL rules in separate Turtle
 shapes = ["policies/relations.ttl", "policies/lifecycle.ttl"]
 ```
 
-`check` builds an in-memory RDF projection from current documents and resolved references, runs pinned Rudof SHACL Native validation (Core plus tested inline SPARQL), and maps violations back to Markdown diagnostics. No persistent RDF store or SQL index is required. See [policy examples, RDF vocabulary and limits](crates/docvera-cli/assets/shacl.md) and the runnable [design-invariants workspace](examples/use-cases/design-invariants).
+`check` builds an in-memory RDF projection from current documents and resolved references, runs pinned Rudof SHACL Native validation (Core plus tested inline SPARQL), and maps violations back to Markdown diagnostics. No persistent RDF store or database is required. See [policy examples, RDF vocabulary and limits](crates/docvera-cli/assets/shacl.md) and the runnable [design-invariants workspace](examples/use-cases/design-invariants).
 
 `docvera init` and tracked examples use TOML. Legacy `docvera.yaml` remains a migration fallback; having both configs is an error. Local document schemas remain YAML/JSON. There is no custom `constraints` assertion DSL.
 
@@ -143,11 +142,11 @@ async function main() {
   const engine = await openWorkspace({ root: './demo' });
   try {
     const check = await engine.check();
-    await engine.index();
-    const rows = await engine.querySql('SELECT declared_id,type FROM documents ORDER BY path');
-    const hits = await engine.search({ text: 'OAuth', documentType: 'feature' });
+    const rows = await engine.querySql(
+      "SELECT declared_id, metadata['status'] AS status FROM documents WHERE type = 'adr'"
+    );
     const graph = await engine.references({ id: 'FEATURE-0042', direction: 'incoming', depth: 2 });
-    console.log({ check, rows, hits, graph });
+    console.log({ check, rows, graph });
   } finally {
     await engine.close();
   }
@@ -155,9 +154,11 @@ async function main() {
 main().catch(console.error);
 ```
 
-CPU and file/database work runs on Rust blocking workers, not the Node event loop. API methods return the same versioned JSON objects as the CLI. TypeScript declarations are included. Construction is lazy; operations open their own database connections. `close()` rejects new operations and waits for active work.
+File and validation work runs on Rust blocking workers, not the Node event loop. API methods return the same versioned JSON objects as the CLI. TypeScript declarations are included. `openWorkspace` is lazy: every operation re-reads current files. `close()` rejects new operations and waits for active work.
 
-For unsaved editor buffers, use `openChecker({ root })` and `checkDocument(path, text)` instead of repeatedly rescanning disk with `openWorkspace().check()`. Rust also exposes `CheckerContext::from_sources` for a fully in-memory workspace. See [checker API, snapshot semantics, parser/front-matter options and checker-only/WASM builds](docs/checker.md).
+For unsaved editor buffers, use `openChecker({ root })` and `checkDocument(path, text)` to work against an owned in-memory baseline instead of rescanning disk. Rust also exposes `CheckerContext::from_sources` for a fully in-memory workspace. See [checker API, snapshot semantics, parser/front-matter options and checker-only/WASM builds](docs/checker.md).
+
+Browser/WASM bindings ship in the same npm package as **`@a5i/docvera/wasm`**. Use `await openChecker({ config, sources })` with caller-supplied Markdown/schema text; WASM initialization and resource cleanup are handled by the Promise-based API. The engine's `sql` feature also exposes a Rust API. See [API, build instructions and limitations](docs/in-memory-sql.md).
 
 ## CLI contracts
 
@@ -176,7 +177,7 @@ docvera check --warnings-as-errors --format json
 - `json`: one versioned result object (except `schema`, which emits a bare JSON Schema); `jsonl`: the same envelope on one compact line.
 - Exit **0**: success; **1**: validation failed; **2**: operational/usage error.
 - Lint and SHACL warnings do not fail checks unless `--warnings-as-errors` is set.
-- SQL: SQLite syntax, five public tables (`documents`, `sections`, `nodes`, `relations`, `diagnostics`), allowlisted functions, no writes/ATTACH/PRAGMA/extension loading, 1,000-row cap and approximately two-second VM deadline. This is defense in depth, **not a memory-isolated adversarial SQL sandbox**.
+- SQL: GlueSQL dialect over the current workspace, five public tables (`documents`, `sections`, `nodes`, `relations`, `diagnostics`), structured `MAP`/`LIST` values via `metadata['key']`, writes/multiple statements rejected, 1,000-row cap (checked after evaluation; no execution deadline). Treat SQL as trusted input, **not a memory-isolated adversarial sandbox**.
 - Search text is a literal phrase, not an FTS expression. Results have positive relevance scores, source spans and deterministic tie-breaking.
 - Spans use zero-based UTF-8 byte offsets (exclusive end); line/column coordinates are one-based Unicode scalar positions.
 

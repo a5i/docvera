@@ -6,7 +6,7 @@ license.workspace = true
 authors.workspace = true
 rust-version.workspace = true
 repository.workspace = true
-description = "Schema-validated, indexed, queryable Markdown knowledge base engine"
+description = "Schema-validated, queryable Markdown knowledge base engine"
 readme = "../../README.md"
 keywords = ["markdown", "schema", "validation", "knowledge-base", "documentation"]
 categories = ["text-processing"]
@@ -14,9 +14,9 @@ categories = ["text-processing"]
 [package.metadata.docs.rs]
 all-features = true
 [features]
-default = ["index", "shacl"]
-index = ["dep:rusqlite"]
+default = ["sql", "shacl"]
 shacl = ["dep:shacl", "dep:rudof_rdf", "dep:oxrdf"]
+sql = ["dep:gluesql-core", "dep:getrandom"]
 
 [dependencies]
 anyhow.workspace = true
@@ -26,7 +26,6 @@ schemars = "1"
 serde-saphyr = "2.0"
 jsonschema = { version = "0.59", default-features = false }
 pulldown-cmark = "0.13"
-rusqlite = { version = "0.40", features = ["bundled", "hooks"], optional = true }
 globset = "0.4"
 walkdir = "2"
 blake3 = "1"
@@ -36,6 +35,11 @@ toml = "0.9"
 shacl = { version = "=0.3.29", features = ["sparql"], optional = true }
 rudof_rdf = { version = "=0.3.29", default-features = false, optional = true }
 oxrdf = { version = "=0.3.5", optional = true }
+gluesql-core = { version = "=0.20.0", optional = true }
+
+# GlueSQL uses rand 0.8; enable its browser entropy backend only on WASM.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.2", features = ["js"], optional = true }
 
 [dev-dependencies]
 tempfile = "3"

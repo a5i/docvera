@@ -21,12 +21,11 @@ fn run(root: &Path, args: &[&str], code: i32) -> Value {
 }
 
 #[test]
-fn all_use_cases_check_index_query_and_fail_with_validation_exit_code() {
-    for &(name, count) in SCENARIOS {
+fn all_use_cases_check_query_and_fail_with_validation_exit_code() {
+    for &(name, _count) in SCENARIOS {
         let dir = fixture(name);
         let root = dir.path();
         assert_eq!(run(root, &["check"], 0)["diagnostics"], json!([]));
-        assert_eq!(run(root, &["index"], 0)["updated"], count);
         for path in reports(root) {
             let sql = fs::read_to_string(&path).unwrap();
             let result = run(root, &["query", "sql", &sql], 0);
@@ -59,24 +58,18 @@ fn all_use_cases_check_index_query_and_fail_with_validation_exit_code() {
 }
 
 #[test]
-fn operational_search_extract_and_architecture_graph_commands() {
+fn operational_extract_and_architecture_graph_commands() {
     let dir = fixture("operational-readiness");
-    run(dir.path(), &["index"], 0);
-    let hits = run(
+    let sections = run(
         dir.path(),
         &[
-            "search",
-            "database connection timeout",
-            "--type",
-            "runbook",
-            "--section",
-            "Diagnosis",
+            "query",
+            "sql",
+            "SELECT s.section_id FROM sections s JOIN documents d ON d.path = s.document_id WHERE d.declared_id = 'RUN-001' AND s.heading = 'Diagnosis'",
         ],
         0,
     );
-    assert_eq!(hits["results"].as_array().unwrap().len(), 1);
-    assert_eq!(hits["results"][0]["documentId"], "RUN-001");
-    let section = hits["results"][0]["sectionId"].as_str().unwrap();
+    let section = sections["rows"][0]["section_id"].as_str().unwrap();
     assert!(
         run(dir.path(), &["extract", section], 0)["markdown"]
             .as_str()
@@ -84,7 +77,6 @@ fn operational_search_extract_and_architecture_graph_commands() {
             .starts_with("# Diagnosis")
     );
     let dir = fixture("architecture-governance");
-    run(dir.path(), &["index"], 0);
     for (direction, id) in [("incoming", "COMP-001"), ("outgoing", "COMP-002")] {
         let graph = run(dir.path(), &["graph", direction, id, "--depth", "1"], 0);
         assert!(

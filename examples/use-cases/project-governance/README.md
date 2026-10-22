@@ -9,7 +9,6 @@ From the repository root after building `docvera`:
 ```sh
 root=examples/use-cases/project-governance
 target/debug/docvera --root "$root" check
-target/debug/docvera --root "$root" index
 target/debug/docvera --root "$root" query sql "$(cat "$root/queries/documentation-drift.sql")" --format json
 target/debug/docvera --root "$root" query sql "$(cat "$root/queries/incomplete-milestones.sql")" --format json
 ```
@@ -20,7 +19,7 @@ Expected: 4 documents, no diagnostics; both reports have `rows: []`.
 
 - Change specification status to draft: documentation-drift returns
   `[{"epic":"PROJ-101","specification":"SPEC-001","specification_status":"draft"}]`
-  after indexing; `check` passes.
+  in the SQL report; `check` passes.
 - Change epic status to in-progress: incomplete-milestones returns
   `[{"milestone":"MS-001","deliverable":"PROJ-101"}]`.
 - Remove an epic owner, rename charter Scope or point the epic specification at

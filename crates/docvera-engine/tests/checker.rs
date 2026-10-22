@@ -397,36 +397,6 @@ fn duplicate_normalized_source_paths_are_rejected() {
     assert!(CheckerContext::from_sources(config(CONFIG), input).is_err());
 }
 
-#[cfg(feature = "index")]
-#[test]
-fn parser_and_front_matter_options_invalidate_the_index() {
-    use docvera_engine::index;
-    let dir = disk_fixture();
-    let root = dir.path();
-    let ws = Workspace::load(root).unwrap();
-    assert_eq!(index::index(&ws, false).unwrap().updated, 2);
-    assert_eq!(index::index(&ws, false).unwrap().updated, 0);
-    let cfg = format!("{CONFIG}\n[parser]\ntables = false\n");
-    put(root, "docvera.toml", &cfg);
-    assert_eq!(
-        index::index(&Workspace::load(root).unwrap(), false)
-            .unwrap()
-            .updated,
-        2
-    );
-    put(
-        root,
-        "docvera.toml",
-        &format!("{cfg}\n[frontMatter]\nyaml = false\n"),
-    );
-    assert_eq!(
-        index::index(&Workspace::load(root).unwrap(), false)
-            .unwrap()
-            .updated,
-        2
-    );
-}
-
 #[test]
 fn schema_updates_revalidate_cached_documents_and_enable_new_unsaved_selectors() {
     let mut context = CheckerContext::from_sources(config(CONFIG), sources()).unwrap();

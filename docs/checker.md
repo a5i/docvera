@@ -70,25 +70,25 @@ Results use the existing `CheckResult` contract. Offsets are zero-based **UTF-8 
 
 | Features | Capabilities |
 |---|---|
-| defaults (`index`, `shacl`) | Existing complete engine |
-| `--no-default-features` | Parser, local schemas, lint, identities, links and typed relations; no SQLite/RDF dependencies |
-| `--no-default-features --features index` | Add SQLite/FTS and retrieval, without SHACL |
-| `--no-default-features --features shacl` | Add in-memory RDF policies, without SQLite |
+| defaults (`sql`, `shacl`) | Complete engine with GlueSQL retrieval |
+| `--no-default-features` | Parser, local schemas, lint, identities, links and typed relations; no SQL/RDF dependencies |
+| `--no-default-features --features sql` | Add read-only in-memory GlueSQL snapshots and retrieval, without SHACL |
+| `--no-default-features --features shacl` | Add in-memory RDF policies, without SQL |
 
 A checker without the `shacl` feature **fails closed** if `[validation.shacl]` is configured; it never silently skips requested policies. `docvera-cli` and `docvera-node` currently use the default full engine.
 
 ```sh
 cargo test --locked -p docvera-engine --no-default-features
-cargo test --locked -p docvera-engine --no-default-features --features index
+cargo test --locked -p docvera-engine --no-default-features --features sql
 cargo test --locked -p docvera-engine --no-default-features --features shacl
 rustup target add wasm32-unknown-unknown
 cargo build --locked -p docvera-engine --no-default-features --target wasm32-unknown-unknown
 ```
 
-The final command verifies compilation/code generation of the Rust checker core for WASM. Use `from_sources`, not filesystem loading, in a browser host. This is **not yet a packaged browser JavaScript binding or a browser runtime test**, and does not claim WASM support for the optional index/RDF stacks. Their absence from the checker dependency graph can be inspected with `cargo tree -p docvera-engine --no-default-features --edges normal`.
+The final command verifies compilation/code generation of the Rust checker core for WASM. Use `from_sources`, not filesystem loading, in a browser host. That command alone is **not a JavaScript binding or browser runtime test**, and does not claim WASM support for the optional SQL/RDF stacks. A separate experimental `docvera-wasm` adapter now provides Node/web builds and a real browser smoke test, including GlueSQL: see [in-memory SQL and WASM](in-memory-sql.md). Their absence from the checker dependency graph can be inspected with `cargo tree -p docvera-engine --no-default-features --edges normal`.
 
 ## Parsing and untyped files
 
-See [schema configuration](../crates/docvera-cli/assets/schema.md#resolution-and-workspace) for `[parser]`, `[frontMatter]` and `[validation].untyped`. All entry points use the same settings. Parser options and front-matter settings participate in the index invalidation fingerprint. Source text is never normalized or rewritten: BOM, line endings and original bytes remain in the document and its hash.
+See [schema configuration](../crates/docvera-cli/assets/schema.md#resolution-and-workspace) for `[parser]`, `[frontMatter]` and `[validation].untyped`. All entry points use the same settings. Parser and front-matter options participate in the workspace fingerprint. Source text is never normalized or rewritten: BOM, line endings and original bytes remain in the document and its hash.
 
 pulldown-cmark is a crates.io dependency (`0.13`; the repository lockfile pins `0.13.4`). A Rust consumer controlling the root Cargo workspace can override it via `[patch.crates-io]`. Precompiled Node binaries require rebuilding to incorporate such a patch. Known upstream range defects are not repaired by this API; metadata is handled separately with parser-owned YAML/TOML locations and whole-front-matter fallbacks where a precise location is unavailable.

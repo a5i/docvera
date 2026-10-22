@@ -36,8 +36,7 @@ test('structured SHACL diagnostics, exact UTF-8 spans and SQL persistence have n
     assert.deepEqual(finding.shacl.resultPath, { kind: 'predicate', iri: 'urn:docvera:v1:field:review.states' });
     assert.deepEqual(finding.shacl.sourceShape, { kind: 'iri', value: 'urn:policy:State' });
     assert.equal(finding.shacl.value.value, 'planned');
-    await engine.index();
-    const sql = "SELECT json_extract(shacl,'$.focusNode.value') AS focus, json_extract(shacl,'$.sourceField') AS field FROM diagnostics";
+    const sql = "SELECT shacl['focusNode']['value'] AS focus, shacl['sourceField'] AS field FROM diagnostics";
     const rows = await engine.querySql(sql);
     assert.deepEqual(rows, cli(root, ['query', 'sql', sql], 0));
     assert.deepEqual(rows.rows, [{ focus: 'urn:docvera:document:id:N-1', field: '/review/states/1' }]);

@@ -1,0 +1,15 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Docvera WASM smoke</title>
+<pre id="result">RUNNING</pre>
+<script type="module">
+try {
+  const wasm = await import('../pkg-web/docvera_wasm.js');
+  const { smoke } = await import('./shared.mjs');
+  await wasm.default();
+  smoke(wasm);
+  document.querySelector('#result').textContent = 'PASS';
+} catch (error) {
+  document.querySelector('#result').textContent = `FAIL: ${error.stack || error}`;
+}
+</script>

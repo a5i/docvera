@@ -98,3 +98,35 @@ test('untyped skip, new buffers and configured parser have native/CLI parity', a
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('source-based native checker exposes structured SQL, retrieval and independent snapshots', async () => {
+  const checker = await openChecker({
+    config: { version: 1, include: ['*.md'], schemas: { '*.md': 'note.yaml' } },
+    sources: {
+      schemas: { 'note.yaml': 'schemaVersion: 1\ndocumentType: note\nidentity: {field: frontMatter.id, uniqueWithin: workspace}\nbody: {allowPreamble: true, additionalSections: true}\n' },
+      documents: { 'a.md': '---\nid: A\ntags: [rust, wasm]\nenabled: true\n---\n# Alpha\n' },
+    },
+  });
+  let snapshot;
+  try {
+    const metadata = (await checker.querySql('SELECT metadata FROM documents')).rows[0].metadata;
+    assert.deepEqual(metadata, { id: 'A', tags: ['rust', 'wasm'], enabled: true });
+    assert.equal((await checker.references({ id: 'A' })).root, 'a.md');
+    const section = (await checker.querySql('SELECT section_id FROM sections LIMIT 1')).rows[0].section_id;
+    assert.match((await checker.extract(section)).markdown, /# Alpha/);
+    snapshot = await checker.sqlSnapshot();
+    await checker.removeDocument('a.md');
+    assert.deepEqual((await checker.querySql('SELECT COUNT(*) AS n FROM documents')).rows, [{ n: 0 }]);
+    await checker.close();
+    assert.deepEqual((await snapshot.querySql('SELECT COUNT(*) AS n FROM documents')).rows, [{ n: 1 }]);
+    const pending = snapshot.querySql('SELECT COUNT(*) AS n FROM documents');
+    const closing = snapshot.close();
+    assert.equal(snapshot.close(), closing);
+    assert.deepEqual((await pending).rows, [{ n: 1 }]);
+    await closing;
+    await assert.rejects(snapshot.querySql('SELECT 1'), /closed/);
+  } finally {
+    await snapshot?.close();
+    await checker.close();
+  }
+});

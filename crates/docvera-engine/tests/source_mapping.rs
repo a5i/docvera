@@ -1,6 +1,6 @@
-#![cfg(all(feature = "index", feature = "shacl"))]
+#![cfg(all(feature = "sql", feature = "shacl"))]
 use docvera_engine::{
-    Workspace, index,
+    Workspace,
     model::{RdfPath, RdfTerm},
     parser,
 };
@@ -188,22 +188,20 @@ fn relation_items_map_back_to_reference_tokens_not_target_documents() {
 }
 
 #[test]
-fn structured_reports_survive_sql_index_and_legacy_index_migration() {
+fn structured_shacl_reports_are_queryable_without_a_persistent_index() {
     let dir = fixture(
         "---\nid: N-1\nstatus: planned\n---\n# Note\n",
         "sh:property [ sh:path f:status ; sh:in (\"draft\") ] .",
     );
     let ws = Workspace::load(dir.path()).unwrap();
-    index::index(&ws, false).unwrap();
-    let query = "SELECT json_extract(shacl,'$.focusNode.value') AS focus, json_extract(shacl,'$.sourceField') AS field FROM diagnostics";
-    let expected = serde_json::json!([{"focus":"urn:docvera:document:id:N-1","field":"/status"}]);
-    assert_eq!(index::query(dir.path(), query).unwrap()["rows"], expected);
-    let conn = rusqlite::Connection::open(dir.path().join(".docvera/index.sqlite3")).unwrap();
-    conn.execute("ALTER TABLE diagnostics DROP COLUMN shacl", [])
-        .unwrap();
-    drop(conn);
-    assert_eq!(index::index(&ws, false).unwrap().updated, 0);
-    assert_eq!(index::query(dir.path(), query).unwrap()["rows"], expected);
+    let rows = ws
+        .query_sql("SELECT shacl['focusNode']['value'] AS focus, shacl['sourceField'] AS field FROM diagnostics")
+        .unwrap()["rows"]
+        .clone();
+    assert_eq!(
+        rows,
+        serde_json::json!([{"focus":"urn:docvera:document:id:N-1","field":"/status"}])
+    );
 }
 
 #[test]

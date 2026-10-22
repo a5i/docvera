@@ -14,11 +14,8 @@ fn validator(schema: schemars::Schema) -> jsonschema::Validator {
 #[test]
 fn generated_schemas_are_valid_deterministic_and_feature_aware() {
     let schemas = contracts::json_schemas();
-    assert_eq!(
-        schemas.contains_key("index-result"),
-        cfg!(feature = "index")
-    );
-    for (name, schema) in schemas {
+    assert!(!schemas.contains_key("index-result"));
+    for (name, schema) in schemas.clone() {
         let data = value(schema);
         assert_eq!(
             data["$schema"],
@@ -220,21 +217,4 @@ fn serde_skipped_provenance_never_leaks_into_generated_document_ir() {
     let schema = value(schema);
     assert!(schema["properties"].get("metadataSpans").is_none());
     assert!(schema["properties"].get("metadata_spans").is_none());
-}
-
-#[cfg(feature = "index")]
-#[test]
-fn index_result_contract_tracks_required_serialized_fields() {
-    let validate = validator(contracts::index_result_schema());
-    let result = docvera_engine::index::IndexResult {
-        contract_version: CONTRACT_VERSION,
-        documents: 3,
-        updated: 2,
-        deleted: 1,
-        diagnostics: 0,
-    };
-    let mut data = serde_json::to_value(result).unwrap();
-    assert!(validate.is_valid(&data));
-    data.as_object_mut().unwrap().remove("updated");
-    assert!(!validate.is_valid(&data));
 }

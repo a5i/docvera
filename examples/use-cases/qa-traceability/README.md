@@ -9,7 +9,6 @@ From the repository root after building `docvera`:
 ```sh
 root=examples/use-cases/qa-traceability
 target/debug/docvera --root "$root" check
-target/debug/docvera --root "$root" index
 target/debug/docvera --root "$root" query sql "$(cat "$root/queries/coverage.sql")" --format json
 target/debug/docvera --root "$root" query sql "$(cat "$root/queries/uncovered-critical.sql")" --format json
 ```
@@ -27,7 +26,7 @@ Coverage rows:
 ## Try changes in a copy
 
 - Promote `REQ-002` to `critical`: the critical-coverage report returns
-  `[{"requirement":"REQ-002"}]` after indexing; `check` passes.
+  `[{"requirement":"REQ-002"}]` in the SQL report; `check` passes.
 - Delete `docs/execution.md`: latest result becomes `failed`, not `passed`.
 - Retire `TC-001`: active test count becomes zero and latest result becomes null;
   `REQ-001` appears in uncovered-critical.
