@@ -1,0 +1,64 @@
+A document schema describes two separate contracts: **front matter** uses JSON Schema, and the **body** uses a section-tree DSL. Schema files can be YAML or JSON.
+
+## Map files to schemas
+
+Your `docvera.yaml` configuration selects documents and maps their paths to a schema:
+
+```yaml
+version: 1
+include: ["docs/**/*.md"]
+schemas:
+  "docs/**/*.md": schemas/note.yaml
+```
+
+Paths are relative to the workspace root. The in-memory browser API uses the same configuration field names.
+
+## Type the metadata
+
+This schema requires an identity, a title, and a status. It rejects unknown statuses and additional front matter fields:
+
+```yaml
+schemaVersion: 1
+documentType: note
+frontMatter:
+  type: object
+  required: [id, title, status]
+  properties:
+    id: {type: string}
+    title: {type: string}
+    status: {enum: [draft, accepted]}
+  additionalProperties: false
+identity:
+  field: frontMatter.id
+  uniqueWithin: workspace
+```
+
+`identity` makes the declared ID available to the workspace and checks its uniqueness. It is not inferred from a field name alone.
+
+## Describe required sections
+
+Add a body contract to the same schema:
+
+```yaml
+body:
+  sections:
+    - titleEquals: frontMatter.title
+      children:
+        sections:
+          - title: Context
+            nonEmpty: true
+          - title: Decision
+            nonEmpty: true
+```
+
+The top-level heading must match the metadata title. It must contain Context and Decision sections with content. This is a section-tree contract, not JSON Schema applied to Markdown text.
+
+## Try the contract
+
+Open `note.yaml` to edit the complete schema. In `note.md`, change `status: draft` to `status: unknown`, then run a check. Or remove the Decision section and check the document structure.
+
+<Playground compact />
+
+## Go deeper
+
+The [full schema language reference](https://github.com/a5i/docvera/blob/main/crates/docvera-cli/assets/schema.md) covers cardinality, nested sections, content rules and relation declarations. The repository also includes [role-based example workspaces](https://github.com/a5i/docvera/tree/main/examples/use-cases) used as integration-test fixtures.

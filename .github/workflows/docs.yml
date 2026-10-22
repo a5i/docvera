@@ -1,0 +1,36 @@
+name: Documentation site
+on:
+  push:
+    paths: ["apps/docs/**", ".github/workflows/docs.yml"]
+  pull_request:
+    paths: ["apps/docs/**", ".github/workflows/docs.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: apps/docs
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/docs/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+      - run: npm run typecheck
+      - run: npm audit --omit=dev
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e -- --workers=2
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: docs-browser-results
+          path: apps/docs/test-results/
+          if-no-files-found: ignore

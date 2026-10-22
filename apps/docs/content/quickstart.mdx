@@ -1,0 +1,60 @@
+Go from a directory of Markdown to a checked workspace. You need Rust 1.89 or newer to install the CLI from source. Prebuilt binaries are also available on [GitHub Releases](https://github.com/a5i/docvera/releases).
+
+## 1. Install the CLI
+
+```sh
+cargo install --locked docvera-cli
+docvera --version
+```
+
+The Cargo package is named `docvera-cli`; the installed command is `docvera`.
+
+## 2. Create a workspace
+
+Run this from the parent directory of your new workspace:
+
+```sh
+docvera --root knowledge init
+```
+
+`init` creates a configuration, document schemas, and sample ADR, Feature and Test Plan documents. It refuses to overwrite existing files.
+
+## 3. Check the documents
+
+```sh
+docvera --root knowledge check
+```
+
+Try renaming the `## Context` heading in the generated ADR. Run the command again: a missing or unexpected section becomes a diagnostic. Restore the heading to make the workspace valid again.
+
+For machine-readable diagnostics, including source spans:
+
+```sh
+docvera --root knowledge check --format json
+```
+
+## 4. Ask a question
+
+```sh
+docvera --root knowledge query sql \
+  "SELECT declared_id, type, path FROM documents ORDER BY path" \
+  --format json
+```
+
+The engine projects the current workspace in memory. No separate indexing command or database setup is required.
+
+## 5. Use validation as a gate
+
+Run `docvera check` from your workspace root in CI after installing the CLI. Invalid documents cause a nonzero exit status. Keep the same schemas in version control alongside the documents so a pull request reviews both the contract and its changes.
+
+## Using Node.js instead
+
+```sh
+npm install @a5i/docvera
+```
+
+The package root loads the native addon on supported platforms. Browser integrations must explicitly use **`@a5i/docvera/wasm`**. See [Browser & WASM](/docs/wasm/) for the in-memory API.
+
+## Next steps
+
+Read [Document schemas](/docs/schemas/) to describe your own document types, or use the [playground](/playground/) to experiment without installing anything.

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "installCommand": "npm ci",
+  "buildCommand": "npm run build",
+  "outputDirectory": "out",
+  "headers": [
+    {
+      "source": "/runtime/(.*)\\.wasm",
+      "headers": [{ "key": "Content-Type", "value": "application/wasm" }]
+    },
+    {
+      "source": "/runtime/(.*)\\.mjs",
+      "headers": [{ "key": "Content-Type", "value": "text/javascript; charset=utf-8" }]
+    }
+  ]
+}

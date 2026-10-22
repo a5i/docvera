@@ -1,0 +1,61 @@
+Use the same portable validation engine in a browser, without a backend, filesystem access, or native addon. The WASM API ships in the **same npm package** as the native Node.js binding.
+
+## Install once, choose explicitly
+
+```sh
+npm install @a5i/docvera
+```
+
+Import `@a5i/docvera/wasm` for the portable API. The package root is the native addon, not the browser entry.
+
+## Open an in-memory workspace
+
+```ts
+import { openChecker } from '@a5i/docvera/wasm';
+
+const checker = await openChecker({
+  config: {
+    version: 1,
+    include: ['**/*.md'],
+    schemas: { '**/*.md': 'note.yaml' },
+  },
+  sources: {
+    documents: { 'note.md': '# Hello\n' },
+    schemas: {
+      'note.yaml': `schemaVersion: 1
+documentType: note
+body: {allowPreamble: true, additionalSections: true}
+`,
+    },
+  },
+});
+
+try {
+  const result = await checker.check();
+  console.log(result.diagnostics);
+  const query = await checker.querySql(
+    'SELECT path, type FROM documents'
+  );
+  console.log(query.rows);
+} finally {
+  await checker.close();
+}
+```
+
+## Keep the UI responsive
+
+A Promise-based API does **not** mean execution is off-thread. `openChecker` runs synchronous WASM work on its calling thread. For interactive editors, move it into a module Web Worker.
+
+This site's playground serves the package's browser runtime as static assets, imports it inside a Worker, and sends source text through `postMessage`. The UI stops and terminates the Worker after a timeout. No user input is sent to a server.
+
+The package also provides `openCheckerWorker`. Consult the [package reference](https://github.com/a5i/docvera/blob/main/npm/docvera/wasm/index.d.ts) and test its Worker asset handling with your bundler before choosing that entry.
+
+## Release the resources
+
+Always close checkers and independently owned SQL snapshots. Edits to a checker do not change an existing SQL snapshot. Recreate the snapshot when you need a new revision.
+
+## Know the portable boundary
+
+The WASM backend supports in-memory validation and read-only SQL. It does not load a workspace from disk or run SHACL/RDF policies. Use the CLI or native Node.js engine when you need those features.
+
+See the [complete API and table reference](https://github.com/a5i/docvera/blob/main/docs/in-memory-sql.md) for lifecycle rules, supported operations and limitations.

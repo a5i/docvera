@@ -1,0 +1,57 @@
+Docvera projects the workspace into **read-only GlueSQL tables**. Use SQL for reports and exploration without setting up a database server.
+
+## Find your documents
+
+```sql
+SELECT declared_id, type, path
+FROM documents
+ORDER BY path
+```
+
+The `declared_id` comes from the schema's identity declaration. `type` comes from `documentType`.
+
+## Explore the section tree
+
+```sql
+SELECT d.path, s.heading
+FROM documents d
+JOIN sections s ON d.path = s.document_id
+WHERE s.level = 1
+ORDER BY d.path
+```
+
+Section rows expose parsed headings. The full table contract, including source spans, lives in the [in-memory SQL reference](https://github.com/a5i/docvera/blob/main/docs/in-memory-sql.md).
+
+## Report diagnostics
+
+Validation results are data too:
+
+```sql
+SELECT * FROM diagnostics
+```
+
+Try introducing an error in the [playground](/playground/), then run this query in `query.sql`.
+
+## Understand the snapshot
+
+Each CLI command reads the current files. The JavaScript checker maintains its own in-memory baseline; updating a document changes subsequent checks and queries.
+
+An explicitly created SQL snapshot is independent. It does not automatically pick up later edits:
+
+```ts
+const snapshot = await checker.sqlSnapshot();
+try {
+  const result = await snapshot.querySql(
+    'SELECT COUNT(*) AS n FROM documents'
+  );
+  console.log(result.rows);
+} finally {
+  await snapshot.close();
+}
+```
+
+## Boundaries
+
+This is GlueSQL, not PostgreSQL or SQLite. SQL is read-only: mutation statements and multiple statements in a single query are rejected. Do not assume extensions or database-specific functions are available.
+
+Use `docvera check` as your validation gate. A SQL report is not itself an enforcement policy unless your integration explicitly evaluates its result.

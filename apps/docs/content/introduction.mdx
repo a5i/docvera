@@ -1,0 +1,45 @@
+docvera turns Git-managed Markdown into a **validated, typed, queryable knowledge base**. Your documents remain plain files. The engine checks the contracts around them.
+
+## Keep the files. Add confidence.
+
+Markdown is easy to write and review. But a missing decision section, an invalid status, or a broken document link can quietly turn shared knowledge into guesswork.
+
+With docvera you can:
+
+- **Validate metadata** with JSON Schema, including required fields and allowed values.
+- **Check document structure** with explicit heading and section rules.
+- **Connect documents** through unique identities, typed metadata relations, Markdown links and anchors.
+- **Query knowledge** with read-only SQL over documents, sections and diagnostics.
+- **Enforce cross-document policies** with SHACL in the CLI and native Node.js engine.
+
+## Three pieces, one workspace
+
+A workspace brings together Markdown documents, YAML or JSON schemas, and a `docvera.yaml` or `docvera.toml` configuration. The configuration maps document paths to their schemas.
+
+```text
+knowledge/
+├── docvera.yaml
+├── schemas/
+│   └── note.yaml
+└── docs/
+    └── note.md
+```
+
+There is no database server to provision and no derived index to keep in sync. CLI commands read the current files; the browser API receives an in-memory set of sources.
+
+## Choose your entry point
+
+- **[CLI quickstart](/docs/quickstart/)** — initialize a workspace and use validation as a CI gate.
+- **[Document schemas](/docs/schemas/)** — describe metadata and required sections.
+- **[SQL queries](/docs/sql/)** — explore your workspace as structured data.
+- **[Browser & WASM](/docs/wasm/)** — build an interactive integration.
+
+## Try it before installing
+
+The playground executes the actual Rust engine compiled to WebAssembly. Start with a valid note, then introduce an invalid status to see the diagnostic.
+
+<Playground compact />
+
+## Current boundaries
+
+Docvera is a prototype. The browser backend supports portable validation and read-only GlueSQL, but not SHACL/RDF or filesystem loading. Native Node.js and the CLI expose additional operations. See the [repository architecture notes](https://github.com/a5i/docvera/blob/main/docs/architecture.md) for the full limitations.

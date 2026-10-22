@@ -6,6 +6,10 @@ A cross-platform **Rust prototype** that turns Git-managed Markdown into a valid
 
 **Prototype choices:** pure-Rust GlueSQL instead of SQLite/DuckDB, and pulldown-cmark instead of comrak. No database server, bundled C library or downloadable extensions. See [architecture and limitations](docs/architecture.md), [schema language](crates/docvera-cli/assets/schema.md), and [v1 command contracts](crates/docvera-cli/assets/contracts/v1.json). The [original proposal](docs/input/markdown_knowledge_engine_poc_en-2.md) is a roadmap, not a claim that every proposed capability is implemented.
 
+## Documentation website
+
+The Next.js documentation site lives in [`apps/docs`](apps/docs/README.md): MDX guides, shadcn/ui on Base UI, day/night themes, and a browser-only WASM playground. Run `npm ci && npm run dev` from `apps/docs`. The static export is ready for Vercel with **Root Directory: `apps/docs`**; deployment instructions are in the app README.
+
 ## Install
 
 Released versions are published from a `v*` tag by the release workflow:
