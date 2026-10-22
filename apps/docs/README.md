@@ -32,7 +32,7 @@ For Linux CI, use `npx playwright install --with-deps chromium`. Browser tests v
 1. Import the repository as a new Vercel project.
 2. Set **Root Directory** to **`apps/docs`**.
 3. Choose **Next.js**, Node.js **24.x**.
-4. The included `vercel.json` sets **Install: `npm ci`**, **Build: `npm run build`**, **Output: `out`** and explicit WASM/module MIME types.
+4. The included `vercel.json` sets **Install: `npm ci`**, **Build: `npm run build`** and explicit WASM/module MIME types. Leave **Output Directory Override disabled** in Vercel. The Next.js preset uses `.next` for build metadata and automatically handles `output: "export"`; do not override its output directory to `out`.
 5. Deploy. No environment variables or credentials are required by this application. Connect a custom domain in the Vercel project settings when ready.
 
 Do not set the repository root as the Vercel application root or run Cargo during the deployment. The build intentionally consumes a published, pinned engine release rather than the current Rust working tree. Deployment to a live Vercel project is a separate operator action.
