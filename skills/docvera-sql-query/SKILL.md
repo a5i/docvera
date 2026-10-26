@@ -1,6 +1,6 @@
 ---
 name: docvera-sql-query
-description: Query docvera Markdown knowledge with read-only GlueSQL, trace incoming or outgoing references, and extract original source evidence. Use for document discovery, metadata reports, diagnostic joins, impact analysis, or section retrieval; not SQLite or full-text search.
+description: Query docvera Markdown knowledge with read-only GlueSQL, trace incoming or outgoing references, and extract original source evidence. Use for document discovery, metadata reports, diagnostic joins, impact analysis, Markdown block source positions, or section retrieval; not SQLite or full-text search.
 ---
 
 # Retrieve grounded evidence
@@ -47,6 +47,25 @@ POSIX-compatible quoting; adapt it for the actual shell. `LIKE` does not match
 across newlines. Results over 1,000 rows fail after evaluation, so use selective
 queries and `LIMIT`. There is no execution deadline or adversarial sandbox;
 never run untrusted/expensive SQL merely because it is read-only.
+
+## Locate source blocks
+
+```sh
+docvera --root demo query sql "SELECT document_id, kind, language, span FROM nodes WHERE document_id = 'docs/feature-0042.md' LIMIT 20" --format json
+```
+
+`nodes` contains `paragraph`, `code`, `list`, `table`, and `blockquote` blocks
+(enabled by parser options), not a full inline AST. Nested ranges can overlap;
+source ranges may include Markdown delimiters and trailing newlines. Headings
+are represented through `sections`; section `span` includes descendants, but
+`text` is direct content only. Files without headings have no section rows.
+
+`span['start']` and `span['end']` are zero-based UTF-8 byte offsets (exclusive
+end). `line`, `column`, `endLine`, and `endColumn` are one-based Unicode scalar
+coordinates, not JavaScript UTF-16 indices or rendered pixel positions. Slice
+UTF-8 bytes from the exact `documents.source` revision, preserving line endings;
+never apply those offsets directly to a JavaScript string with `.slice()`.
+Relations use `source_span` instead of `span`.
 
 ## Trace references and return source
 

@@ -161,12 +161,13 @@ test('exact JavaScript examples run through native, WASM and Node Worker APIs', 
   mkdirSync(scope, { recursive: true });
   symlinkSync(join(root, 'npm/docvera'), join(scope, 'docvera'), process.platform === 'win32' ? 'junction' : 'dir');
   const examples = blocks(skill('docvera-node-wasm'), 'js');
-  assert.equal(examples.length, 2);
+  assert.equal(examples.length, 3);
   assert.ok(existsSync(join(root, 'npm/docvera/wasm/node/docvera_wasm_bg.wasm')), 'Build the WASM runtime before running skill examples');
   for (const [name, code] of [
     ['native', examples[0]],
     ['wasm', examples[1]],
-    ['worker', examples[1].replace('import { openChecker }', 'import { openCheckerWorker as openChecker }')]
+    ['worker', examples[1].replace('import { openChecker }', 'import { openCheckerWorker as openChecker }')],
+    ['positions', examples[2]],
   ]) {
     const file = join(cwd, `${name}.mjs`);
     writeFileSync(file, code);
@@ -175,6 +176,15 @@ test('exact JavaScript examples run through native, WASM and Node Worker APIs', 
     assert.equal(result.status, 0, `${name}: ${result.stdout}\n${result.stderr}`);
     assert.equal(result.stderr, '');
     if (name === 'native') assert.match(result.stdout, /docs\/feature-0042.md/);
+    else if (name === 'positions') {
+      const rows = result.stdout.trim().split('\n').map(line => JSON.parse(line));
+      assert.ok(rows.length > 0);
+      for (const row of rows) {
+        const source = readFileSync(join(cwd, 'demo', row.document_id));
+        assert.equal(row.markdown, source.subarray(row.span.start, row.span.end).toString('utf8'));
+        assert.ok(['paragraph', 'code', 'list', 'table', 'blockquote'].includes(row.kind));
+      }
+    }
     else assert.match(result.stdout, /NOTE-1[\s\S]*NOTE-2/);
   }
 });

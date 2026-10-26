@@ -1,6 +1,6 @@
 ---
 name: docvera-node-wasm
-description: Integrate the @a5i/docvera JavaScript package into Node.js tools, editors, or browser apps. Use to choose native versus WASM or Worker backends, validate unsaved Markdown, query in-memory snapshots, and manage checker lifecycle; not to install the CLI.
+description: Integrate the @a5i/docvera JavaScript package into Node.js tools, editors, or browser apps. Use to choose native versus WASM or Worker backends, validate unsaved Markdown, query in-memory snapshots, locate Markdown block source positions, and manage checker lifecycle; not to install the CLI.
 ---
 
 # Integrate the JavaScript APIs
@@ -98,6 +98,47 @@ The snapshot keeps `NOTE-1`; the checker sees `NOTE-2`. To run this workflow
 in a Worker, use the WASM export `openCheckerWorker` instead of `openChecker`.
 Browser bundlers/servers must serve the package's relative modules and `.wasm`
 assets; loaders initialize the runtime, so do not call generated raw `init()`.
+
+## Locate Markdown blocks in source
+
+Use `querySql()` on every backend to retrieve `nodes.span`. Native Node.js can
+also join `documents.source` to slice the exact source revision being queried:
+
+```js
+import { openWorkspace } from '@a5i/docvera';
+
+const workspace = await openWorkspace({ root: './demo' });
+try {
+  const { rows } = await workspace.querySql(`
+    SELECT n.document_id, n.kind, n.span, d.source
+    FROM nodes n JOIN documents d ON n.document_id = d.path
+    LIMIT 20
+  `);
+  for (const { document_id, kind, span, source } of rows) {
+    const markdown = Buffer.from(source, 'utf8')
+      .subarray(span.start, span.end).toString('utf8');
+    console.log(JSON.stringify({ document_id, kind, span, markdown }));
+  }
+} finally {
+  await workspace.close();
+}
+```
+
+`start`/`end` are zero-based UTF-8 **byte** offsets with an exclusive end;
+`line`/`column`/`endLine`/`endColumn` are one-based Unicode scalar positions,
+not UTF-16 indices or visual columns. Do not use `source.slice(start, end)`.
+In browsers, slice `new TextEncoder().encode(source)` and decode with
+`TextDecoder` instead of using Node's `Buffer`. Keep the original line endings.
+
+`nodes` projects `paragraph`, `code`, `list`, `table`, and `blockquote` blocks,
+subject to parser options. `language` is the first fenced-code info token or
+null. Ranges may overlap for nested blocks and include Markdown delimiters or
+trailing newlines; they are not rendered/plain-text ranges. This is not a full
+AST: inline text, emphasis, and inline code are not separate node rows.
+Headings are represented through `sections`: its `span` includes the heading
+and descendant sections, while `text` contains direct section content only.
+Native `extract(sectionId)` returns that section range as `location` plus
+original `markdown`. These are source coordinates, not rendered pixel positions.
 
 ## Updates, ownership and verification
 
