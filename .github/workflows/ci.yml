@@ -110,6 +110,8 @@ jobs:
         with:
           name: wasm-ci-runtime
           path: npm/docvera/wasm
+      - name: Verify agent skill contracts and executable examples
+        run: node --test scripts/skills.test.mjs
       - name: Pack npm package (current-platform smoke artifact)
         working-directory: npm/docvera
         run: npm pack

@@ -10,6 +10,15 @@ A cross-platform **Rust prototype** that turns Git-managed Markdown into a valid
 
 The Next.js documentation site lives in [`apps/docs`](apps/docs/README.md): MDX guides, shadcn/ui on Base UI, day/night themes, and a browser-only WASM playground. Run `npm ci && npm run dev` from `apps/docs`. The static export is ready for Vercel with **Root Directory: `apps/docs`**; deployment instructions are in the app README.
 
+## AI agent skills
+
+Install portable docvera workflows with `npx skills add a5i/docvera` or
+`apm install a5i/docvera --target agent-skills`. The five skills cover CLI
+orientation, workspace validation, SQL/evidence retrieval, schemas/SHACL, and
+Node/WASM integration. See [the skill catalog and installation guide](skills/README.md)
+for selective installs, release pinning, runtime prerequisites and verification.
+Installing skills does not install the docvera runtime.
+
 ## Install
 
 Released versions are published from a `v*` tag by the release workflow:

@@ -1,0 +1,2 @@
+# Skill bundles must have deterministic bytes across installer/checkouts.
+skills/** text eol=lf
